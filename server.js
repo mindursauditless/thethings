@@ -134,7 +134,14 @@ First Name: ${FirstName}
     });
 
     const messages = await messagesRes.json();
-    let content = messages.data?.[0]?.content?.[0]?.text?.value;
+    let content;
+
+      const lastMessage = messages.data?.[0];
+      if (lastMessage?.content?.length) {
+        const textPart = lastMessage.content.find(c => c.type === 'text');
+        content = textPart?.text?.value;
+      }
+
 
     console.log("🧠 GPT raw content:", content);
 
