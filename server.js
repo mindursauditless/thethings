@@ -1,5 +1,7 @@
 const express = require('express');
 const fetch = require('node-fetch');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(express.json());
@@ -20,6 +22,11 @@ app.post('/', async (req, res) => {
     console.log("📥 Request received:", req.body);
     console.log("⚙️ Starting full report process...");
 
+    // ✅ Load KB from local .md files in the same folder
+    const osText = fs.readFileSync(path.join(__dirname, 'auditless_OS-results.md'), 'utf-8');
+    const rulesText = fs.readFileSync(path.join(__dirname, 'auditless_rules.md'), 'utf-8');
+    const modulesText = fs.readFileSync(path.join(__dirname, 'Lead_Whisperer_SEO_Modules_Full.md'), 'utf-8');
+
     const leadDetails = `
 Business Name: ${BusinessName}
 Website: ${WebsiteLink}
@@ -27,7 +34,7 @@ Email: ${EmailAddress}
 First Name: ${FirstName}
 `;
 
-    // 📊 Fetch and flatten CSV data
+    // 📊 Fetch and flatten CSVs
     const allCsvData = [];
     for (const fileUrl of UploadFiles) {
       console.log(`📎 Downloading file: ${fileUrl}`);
@@ -61,7 +68,13 @@ ${file.sample.map(row => row.join(', ')).join('\n')}`;
       "- Cross-reference across all uploaded modules using the Modular Awareness Layer.\n",
       "- Make sure to create a summary report as defined below.\n",
       "- Make sure to provide the specific markup needed for Zapier.\n\n",
-      "📥 Lead Details:\n",
+      "## OS Philosophy & Guidelines\n",
+      osText,
+      "\n\n## Scoring and Rules\n",
+      rulesText,
+      "\n\n## SEO Modules and Audit Components\n",
+      modulesText,
+      "\n\n📥 Lead Details:\n",
       leadDetails,
       "\n\n📎 Uploaded CSV Data:\n",
       csvSummary,
