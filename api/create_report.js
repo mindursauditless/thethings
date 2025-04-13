@@ -17,9 +17,9 @@ export default async function handler(req, res) {
 
   res.status(200).json({ message: 'Report is being processed.' });
 
-  setTimeout(async () => {
-    try {
-      console.log("⚙️ Background task started...");
+(async () => {
+  try {
+    console.log("⚙️ Background task started...");
 
       const leadDetails = `
 Business Name: ${BusinessName}
@@ -171,8 +171,7 @@ First Name: ${FirstName}
       console.log("📬 Zapier webhook response:", zapText);
       console.log("✅ Report sent to Zap B.");
 
-    } catch (err) {
-      console.error("🔥 Background processing failed:", err.message);
-    }
-  }, 100);
-}
+  } catch (err) {
+    console.error("🔥 Background processing failed:", err.message);
+  }
+})();
