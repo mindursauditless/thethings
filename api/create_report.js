@@ -57,6 +57,8 @@ try {
           zapier_payload: parsed.zapier_payload
         })
       });
+      const thread = await threadRes.json();
+      const threadId = thread.id;
 
       console.log("✅ Report sent to Zap B.");
 
