@@ -123,4 +123,11 @@ First Name: ${FirstName}
     console.error("❌ Error in create-report:", err);
     return res.status(500).json({ error: 'Failed to generate report', details: err.message });
   }
+  return res.status(200).json({
+  parent_key,
+  thread_id: threadId,
+  summary: parsed.summary,
+  zapier_payload: parsed.zapier_payload
+});
+
 }
