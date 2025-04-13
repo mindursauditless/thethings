@@ -8,7 +8,7 @@ app.use(express.json());
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ASSISTANT_ID = process.env.ASSISTANT_ID;
 
-app.post('/api/create-report', async (req, res) => {
+app.post('/', async (req, res) => {
   const {
     parent_key,
     BusinessName,
