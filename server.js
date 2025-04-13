@@ -19,6 +19,7 @@ app.post('/', async (req, res) => {
   } = req.body;
 
   try {
+    console.log("📥 Request received:", req.body);
     console.log("⚙️ Starting full report process...");
 
     const leadDetails = `
@@ -32,7 +33,7 @@ First Name: ${FirstName}
     for (const fileUrl of UploadFiles) {
       console.log(`📎 Uploading file: ${fileUrl}`);
       const fileRes = await fetch(fileUrl);
-      const fileBlob = await fileRes.buffer(); // note: buffer for node-fetch v2
+      const fileBlob = await fileRes.buffer();
 
       const formData = new FormData();
       formData.append('file', fileBlob, fileUrl.split('/').pop());
@@ -48,9 +49,15 @@ First Name: ${FirstName}
       });
 
       const fileData = await upload.json();
-      if (fileData.id) fileIds.push(fileData.id);
+      if (fileData.id) {
+        fileIds.push(fileData.id);
+        console.log(`✅ Uploaded file ID: ${fileData.id}`);
+      } else {
+        console.warn("⚠️ File upload failed:", fileData);
+      }
     }
 
+    console.log("🧵 Creating thread...");
     const threadRes = await fetch('https://api.openai.com/v1/threads', {
       method: 'POST',
       headers: {
@@ -62,6 +69,7 @@ First Name: ${FirstName}
     const thread = await threadRes.json();
     const threadId = thread.id;
 
+    console.log("📨 Sending message to GPT...");
     await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
       method: 'POST',
       headers: {
@@ -75,6 +83,7 @@ First Name: ${FirstName}
       })
     });
 
+    console.log("▶️ Running assistant...");
     const runRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs`, {
       method: 'POST',
       headers: {
@@ -92,6 +101,7 @@ First Name: ${FirstName}
 
     let status;
     let attempts = 0;
+    console.log("⏳ Waiting for GPT to complete...");
     while (attempts < 20) {
       const statusRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
         headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }
@@ -102,18 +112,38 @@ First Name: ${FirstName}
       attempts++;
     }
 
+    console.log("📨 Fetching GPT response...");
     const messagesRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
       headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }
     });
 
-    let content = (await messagesRes.json())?.data?.[0]?.content?.[0]?.text?.value;
-    if (content?.startsWith('```json')) {
+    const messages = await messagesRes.json();
+    let content = messages.data?.[0]?.content?.[0]?.text?.value;
+
+    console.log("🧠 GPT raw content:", content);
+
+    // Fail gracefully if content is invalid
+    if (!content || typeof content !== 'string' || content.length < 10) {
+      throw new Error("GPT returned no usable content");
+    }
+
+    // Clean up markdown wrappers if needed
+    if (content.startsWith('```json')) {
       content = content.replace(/```json|```/g, '').trim();
     }
 
-    const parsed = JSON.parse(content);
+    let parsed;
+    try {
+      parsed = JSON.parse(content);
+    } catch (err) {
+      console.error("❌ Failed to parse GPT response:", content);
+      throw new Error("Invalid JSON returned from GPT");
+    }
 
-    await fetch('https://hooks.zapier.com/hooks/catch/11845590/20e3egd/', {
+    console.log("✅ Parsed GPT response:", parsed);
+
+    // Send to Zapier
+    const zapRes = await fetch('https://hooks.zapier.com/hooks/catch/11845590/20e3egd/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -123,12 +153,14 @@ First Name: ${FirstName}
       })
     });
 
-    console.log("✅ Report sent to Zapier");
-    res.status(200).json({ message: "Report complete and sent to Zapier." });
+    const zapText = await zapRes.text();
+    console.log("📤 Sent to Zapier. Zapier replied:", zapText);
+
+    return res.status(200).json({ message: "Report complete and sent to Zapier." });
 
   } catch (err) {
-    console.error("🔥 Error:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("🔥 FULL ERROR:", err);
+    return res.status(500).json({ error: err.message });
   }
 });
 
