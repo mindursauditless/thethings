@@ -14,6 +14,27 @@ export default async function handler(req, res) {
 
   // ✅ Acknowledge Zapier immediately
   res.status(200).json({ message: 'Report is being processed.' });
+// Step 1: Get Assistant reply
+const messagesRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+  headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }
+});
+
+const messages = await messagesRes.json();
+let content = messages.data?.[0]?.content?.[0]?.text?.value;
+
+// Step 2: Strip formatting if wrapped in ```json
+if (content?.startsWith('```json')) {
+  content = content.replace(/```json|```/g, '').trim();
+}
+
+// Step 3: Parse it safely
+let parsed;
+try {
+  parsed = JSON.parse(content);
+} catch (err) {
+  console.error("❌ Failed to parse GPT response as JSON:", err.message);
+  return;
+}
 
   // ✅ Background task: GPT logic + callback to Zap B
   setTimeout(async () => {
