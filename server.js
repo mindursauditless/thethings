@@ -1,12 +1,10 @@
 const express = require('express');
 const fetch = require('node-fetch');
-const FormData = require('form-data');
 
 const app = express();
 app.use(express.json());
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const ASSISTANT_ID = process.env.ASSISTANT_ID;
 
 app.post('/', async (req, res) => {
   const {
@@ -29,45 +27,29 @@ Email: ${EmailAddress}
 First Name: ${FirstName}
 `;
 
-    const fileIds = [];
+    // 📊 Fetch and flatten CSV data
+    const allCsvData = [];
     for (const fileUrl of UploadFiles) {
-      console.log(`📎 Uploading file: ${fileUrl}`);
+      console.log(`📎 Downloading file: ${fileUrl}`);
       const fileRes = await fetch(fileUrl);
-      const fileBlob = await fileRes.buffer();
+      const csvText = await fileRes.text();
+      const lines = csvText.trim().split('\n');
+      const headers = lines[0]?.split(',') || [];
+      const rows = lines.slice(1).map(l => l.split(','));
 
-      const formData = new FormData();
-      formData.append('file', fileBlob, fileUrl.split('/').pop());
-      formData.append('purpose', 'assistants');
-
-      const upload = await fetch('https://api.openai.com/v1/files', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          ...formData.getHeaders()
-        },
-        body: formData
+      allCsvData.push({
+        filename: fileUrl.split('/').pop(),
+        headers,
+        sample: rows.slice(0, 5)
       });
-
-      const fileData = await upload.json();
-      if (fileData.id) {
-        fileIds.push(fileData.id);
-        console.log(`✅ Uploaded file ID: ${fileData.id}`);
-      } else {
-        console.warn("⚠️ File upload failed:", fileData);
-      }
     }
 
-    console.log("🧵 Creating thread...");
-    const threadRes = await fetch('https://api.openai.com/v1/threads', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const thread = await threadRes.json();
-    const threadId = thread.id;
+    const csvSummary = allCsvData.map(file => {
+      return `File: ${file.filename}
+Headers: ${file.headers.join(', ')}
+Sample Rows:
+${file.sample.map(row => row.join(', ')).join('\n')}`;
+    }).join('\n\n');
 
     const promptMessage = [
       "You are The Lead Whisperer, an advanced local SEO strategist.\n\n",
@@ -81,67 +63,31 @@ First Name: ${FirstName}
       "- Make sure to provide the specific markup needed for Zapier.\n\n",
       "📥 Lead Details:\n",
       leadDetails,
-      "\n📎 You also have access to multiple uploaded CSV files.\n\n",
-      "Return a single valid JSON object using the format provided in your documentation."
+      "\n\n📎 Uploaded CSV Data:\n",
+      csvSummary,
+      "\n\nReturn a single valid JSON object using the format provided in your documentation."
     ].join('');
 
-    console.log("📨 Sending message to GPT...");
-    await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+    console.log("💬 Sending chat completion...");
+
+    const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        role: 'user',
-        content: promptMessage,
-        file_ids: fileIds
+        model: 'gpt-4-0125-preview',
+        messages: [
+          { role: 'system', content: 'You are a JSON-only returning assistant. Respond only with valid JSON.' },
+          { role: 'user', content: promptMessage }
+        ],
+        temperature: 0.3
       })
     });
 
-    console.log("▶️ Running assistant...");
-    const runRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        assistant_id: ASSISTANT_ID,
-        instructions: 'Use your knowledge base and rules to return a summary and zapier_payload in valid JSON.'
-      })
-    });
-
-    const run = await runRes.json();
-    const runId = run.id;
-
-    let status;
-    let attempts = 0;
-    console.log("⏳ Waiting for GPT to complete...");
-    while (attempts < 20) {
-      const statusRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
-        headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }
-      });
-      status = await statusRes.json();
-      if (status.status === 'completed') break;
-      await new Promise(r => setTimeout(r, 1500));
-      attempts++;
-    }
-
-    console.log("📨 Fetching GPT response...");
-    const messagesRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
-      headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }
-    });
-
-    const messages = await messagesRes.json();
-    let content;
-
-      const lastMessage = messages.data?.[0];
-      if (lastMessage?.content?.length) {
-        const textPart = lastMessage.content.find(c => c.type === 'text');
-        content = textPart?.text?.value;
-      }
-
+    const chatJson = await chatRes.json();
+    let content = chatJson?.choices?.[0]?.message?.content;
 
     console.log("🧠 GPT raw content:", content);
 
