@@ -15,10 +15,8 @@ export default async function handler(req, res) {
     UploadFiles = []
   } = req.body;
 
-  // ✅ Return quickly to Zapier
   res.status(200).json({ message: 'Report is being processed.' });
 
-  // ✅ Background task: do all the real work after Zapier is done
   setTimeout(async () => {
     try {
       console.log("⚙️ Background task started...");
@@ -30,9 +28,11 @@ Email: ${EmailAddress}
 First Name: ${FirstName}
 `;
 
-      // 🗂️ Upload all files to OpenAI
+      // 🗂️ Upload CSVs
+      console.log("📦 Uploading files...");
       const fileIds = [];
       for (const fileUrl of UploadFiles) {
+        console.log(`📎 Uploading file: ${fileUrl}`);
         const fileRes = await fetch(fileUrl);
         const fileBlob = await fileRes.blob();
         const formData = new FormData();
@@ -48,10 +48,18 @@ First Name: ${FirstName}
         });
 
         const fileData = await upload.json();
-        if (fileData.id) fileIds.push(fileData.id);
+        if (fileData.id) {
+          fileIds.push(fileData.id);
+          console.log(`✅ Uploaded: ${fileData.id}`);
+        } else {
+          console.error("❌ File upload failed:", fileData);
+        }
       }
 
-      // 🧠 Create a new thread
+      console.log("✅ Files uploaded:", fileIds);
+
+      // 🧵 Create thread
+      console.log("🧵 Creating thread...");
       const threadRes = await fetch('https://api.openai.com/v1/threads', {
         method: 'POST',
         headers: {
@@ -62,8 +70,10 @@ First Name: ${FirstName}
 
       const thread = await threadRes.json();
       const threadId = thread.id;
+      console.log("✅ Thread created:", threadId);
 
-      // ✉️ Add a user message
+      // ✉️ Add message to thread
+      console.log("✉️ Sending message to Assistant...");
       await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
         method: 'POST',
         headers: {
@@ -78,6 +88,7 @@ First Name: ${FirstName}
       });
 
       // ▶️ Run the Assistant
+      console.log("▶️ Running Assistant...");
       const runRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs`, {
         method: 'POST',
         headers: {
@@ -93,39 +104,60 @@ First Name: ${FirstName}
       const run = await runRes.json();
       const runId = run.id;
 
-      // ⏳ Wait for completion
+      // ⏳ Polling GPT
+      console.log("⏳ Waiting for GPT...");
       let status;
+      let attempts = 0;
+      const maxAttempts = 20;
       do {
         const statusRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
           headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }
         });
         status = await statusRes.json();
         if (status.status === 'completed') break;
+        attempts++;
+        if (attempts >= maxAttempts) {
+          console.error("❌ GPT polling exceeded max attempts.");
+          return;
+        }
         await new Promise(res => setTimeout(res, 1500));
       } while (status.status === 'queued' || status.status === 'in_progress');
 
-      // 🧾 Get the assistant response
+      // 🧾 Fetch GPT response
       const messagesRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
         headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }
       });
 
       const messages = await messagesRes.json();
       let content = messages.data?.[0]?.content?.[0]?.text?.value;
+      console.log("🧠 GPT raw content:", content);
 
-      if (content?.startsWith('```json')) {
+      if (!content || typeof content !== 'string') {
+        console.error("❌ GPT returned no usable content.");
+        return;
+      }
+
+      if (content.startsWith('```json')) {
         content = content.replace(/```json|```/g, '').trim();
       }
 
       let parsed;
       try {
         parsed = JSON.parse(content);
+        console.log("✅ Parsed GPT response:", parsed);
       } catch (err) {
-        console.error("❌ Failed to parse GPT response as JSON:", err.message);
+        console.error("❌ Failed to parse GPT response:", err.message);
         return;
       }
 
-      // 🔁 Send result to Zap B
-      await fetch('https://hooks.zapier.com/hooks/catch/11845590/20e3egd/', {
+      // 📤 Send to Zapier
+      console.log("📤 Sending report to Zap B:", {
+        parent_key,
+        summary: parsed.summary,
+        zapier_payload: parsed.zapier_payload
+      });
+
+      const zapRes = await fetch('https://hooks.zapier.com/hooks/catch/11845590/20e3egd/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -135,6 +167,8 @@ First Name: ${FirstName}
         })
       });
 
+      const zapText = await zapRes.text();
+      console.log("📬 Zapier webhook response:", zapText);
       console.log("✅ Report sent to Zap B.");
 
     } catch (err) {
