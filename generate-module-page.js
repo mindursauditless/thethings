@@ -10,14 +10,19 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const loadModulePrompt = require('./moduleprompt').loadModulePrompt;
 
 router.post('/generate-module-page', async (req, res) => {
+  console.log('📥 Incoming request to /generate-module-page');
+  console.log('🔍 Body:', JSON.stringify(req.body, null, 2));
+
   try {
     const { module, rows = [] } = req.body;
 
     if (!module || !Array.isArray(rows) || rows.length === 0) {
+      console.error('❌ Invalid input. Module:', module, 'Rows:', rows);
       return res.status(400).json({ error: 'Missing or invalid module or rows' });
     }
 
     console.log(`📥 Generating final module page for: ${module}`);
+    console.log(`📊 Row count: ${rows.length}`);
 
     const moduleDir = path.join(__dirname, 'modules', module);
     const osPath = path.join(__dirname, 'modules', 'universal_os.md');
@@ -59,12 +64,15 @@ Format all lists (issues, action items, URLs) using bullets. Return valid JSON s
     });
 
     const content = response.choices?.[0]?.message?.content;
-    if (!content) throw new Error('No content returned from GPT');
+    if (!content) {
+      console.error('❌ GPT returned no content');
+      return res.status(500).json({ error: 'No content returned from GPT' });
+    }
 
     const cleaned = content.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleaned);
 
-    console.log(`✅ Generated report for ${module}`);
+    console.log(`✅ Returning generated report for ${module}`);
     res.status(200).json({ module, report: parsed });
   } catch (err) {
     console.error(`❌ Failed to generate module page:`, err);
