@@ -16,7 +16,20 @@ function filterCsvColumns(records, ignoreList) {
   const headers = Object.keys(records[0]);
 
   const keepHeaders = headers.filter(h => {
-    return !lowerCaseIgnore.some(ignore => h.toLowerCase().includes(ignore));
+    const isIgnored = lowerCaseIgnore.some(ignore => h.toLowerCase().includes(ignore));
+    if (isIgnored) return false;
+
+    const allEmptyOrZero = records.every(row => {
+      const val = row[h];
+      return val === undefined || val === null || val === '' || val === '0';
+    });
+
+    if (allEmptyOrZero) {
+      console.log(`🗑️ Dropping column with only empty/zero values: ${h}`);
+      return false;
+    }
+
+    return true;
   });
 
   const filteredRecords = records.map(row => {
