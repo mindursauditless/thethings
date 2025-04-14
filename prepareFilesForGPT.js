@@ -43,9 +43,10 @@ async function prepareFilesForGPT(uploadedCsvs = []) {
 
       const csvText = await res.text();
       const markdown = formatCsvForGPT(csvText, filename);
+      console.log(`📄 Processed ${filename}, length: ${markdown.length}`);
       chunks.push(markdown);
     } catch (err) {
-      console.error(`Error processing ${filename}:`, err);
+      console.error(`❌ Error processing ${filename}:`, err);
     }
   }
 
@@ -53,12 +54,5 @@ async function prepareFilesForGPT(uploadedCsvs = []) {
     formattedMarkdown: chunks.join('\n\n')
   };
 }
-
-// Example usage:
-// const files = [
-//   { filename: 'data1.csv', url: 'https://example.com/file1.csv' },
-//   { filename: 'data2.csv', url: 'https://example.com/file2.csv' }
-// ];
-// prepareFilesForGPT(files).then(({ formattedMarkdown }) => console.log(formattedMarkdown));
 
 module.exports = { prepareFilesForGPT };
