@@ -93,8 +93,26 @@ app.post('/classify-csvs', async (req, res) => {
       const cleaned = content.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(cleaned);
 
-      // You can send this to Notion, email, or a second Zapier hook here
       console.log("✅ Final modules parsed:", Object.keys(parsed));
+
+      // Send result to Zapier catch hook in the background
+      if (process.env.ZAPIER_CATCH_HOOK_URL) {
+        const zapPayload = {
+          name: Name,
+          email: Email,
+          business: Business_Name,
+          website: Website_Link,
+          modules: parsed
+        };
+
+        fetch(process.env.ZAPIER_CATCH_HOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(zapPayload)
+        })
+          .then(() => console.log('📤 Sent parsed modules to Zapier'))
+          .catch(err => console.error('❌ Failed to send to Zapier:', err));
+      }
     } else {
       throw new Error("Assistant run failed");
     }
@@ -102,24 +120,6 @@ app.post('/classify-csvs', async (req, res) => {
     console.error("🔥 Assistants API classify-csvs error:", err);
   }
 });
-
-// Replace with your actual Zapier Catch Hook URL
-const ZAPIER_CATCH_HOOK_URL = process.env.ZAPIER_CATCH_HOOK_URL;
-
-await fetch(ZAPIER_CATCH_HOOK_URL, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    name: Name,
-    email: Email,
-    business: Business_Name,
-    website: Website_Link,
-    modules: parsed
-  })
-});
-
-console.log("📤 Sent parsed modules to Zapier");
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
