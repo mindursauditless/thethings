@@ -122,6 +122,7 @@ Only include rows that are clearly relevant. Skip empty or non-actionable rows.
           email: Email,
           business: Business_Name,
           website: Website_Link,
+          thread_id: thread.id,
           modules: parsed
         };
 
