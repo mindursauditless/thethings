@@ -87,6 +87,24 @@ Only include rows that are clearly relevant. Skip empty or non-actionable rows.
 
 Include **any row** that could reasonably apply to the module — do not over-filter.  
 Your goal is to provide **all possible context** for each module. SEO Strategic evaluation will happen later. The modules are indexing, internal linking, content quality, content redundancy, information architecture, gbp, schema, onsite, and service area pages.
+Use the following matching criteria to determine which rows belong to each module:
+
+schema: ["schema", "structured data", "markup", "json-ld"]
+internal_links: ["internal link", "internal anchor", "link depth", "links", "orphan", "301"]
+onsite: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta" ]
+content_redundancy: ["duplicate content", "low word count", "thin content", "similar", "unique"]
+content_quality: ["duplicate content", "low word count", "thin content", "similar", "unique"]
+indexing: ["mobile", "4xx", "5xx", "sitemap", "crawl", "index", "301", "broken", "blocked", "crawl", "canonical", "noindex", "orphan", "robots", "redirect"]
+information_architecture: ["internal link", "internal anchor", "link depth", "links", "orphan", "301", "mobile", "4xx", "5xx", "sitemap", "crawl", "index", "301", "broken", "blocked", "crawl", "canonical", "noindex", "orphan", "robots", "redirect"]
+gbp: ["reviews", "category", "address"]
+service_area_pages: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta", "internal link", "internal anchor", "link depth", "links", "orphan", "301", "crawl", "index", "301", "broken", "blocked", "crawl", "canonical", "noindex", "orphan", "robots", "redirect"]
+
+
+Note: content quality, service area pages, and information architecture should also receive all ranking report data
+...
+
+For each module, include all CSV rows where the Issue column contains a related keyword.  Literally every single row.
+
 `
           
         }
