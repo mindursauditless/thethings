@@ -84,7 +84,11 @@ Return a JSON object like this:
 
 Do not summarize. Do not analyze. Just group the full rows under the right modules.
 Only include rows that are clearly relevant. Skip empty or non-actionable rows.
+
+Include **any row** that could reasonably apply to the module — do not over-filter.  
+Your goal is to provide **all possible context** for each module. SEO Strategic evaluation will happen later. The modules are indexing, internal linking, content quality, content redundancy, information architecture, gbp, schema, onsite, and service area pages.
 `
+          
         }
       ]
     });
