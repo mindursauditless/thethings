@@ -3,17 +3,23 @@
 const fetch = require('node-fetch');
 const { parse } = require('csv-parse/sync');
 
+/**
+ * Converts a CSV string into a markdown block formatted for GPT classification
+ * @param {string} csvText - Raw CSV content
+ * @param {string} filename - Original filename for traceability
+ * @returns {string} GPT-formatted markdown block
+ */
 function formatCsvForGPT(csvText, filename) {
   const parsed = parse(csvText, {
     columns: true,
     skip_empty_lines: true,
-    relax_column_count: true, // allows minor column mismatches
+    relax_column_count: true,
     on_record: (record, { lines }) => {
       const keys = Object.keys(record);
       const hasEmptyRow = keys.every(k => record[k] === undefined || record[k] === '');
       if (hasEmptyRow) {
         console.warn(`⚠️ Skipping empty or malformed row on line ${lines}`);
-        return null; // skip this record entirely
+        return null;
       }
       return record;
     }
@@ -41,11 +47,10 @@ function formatCsvForGPT(csvText, filename) {
   ].join('\n');
 }
 
-
 /**
  * Prepares multiple uploaded CSV files for GPT classification
  * @param {Array} uploadedCsvs - [{ filename, url }]
- * @returns {Promise<{ formattedMarkdown: string }>}
+ * @returns {Promise<{ formattedMarkdown: string }>} GPT-friendly markdown
  */
 async function prepareFilesForGPT(uploadedCsvs = []) {
   const chunks = [];
