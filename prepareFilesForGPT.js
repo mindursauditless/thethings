@@ -3,30 +3,44 @@
 const fetch = require('node-fetch');
 const { parse } = require('csv-parse/sync');
 
-/**
- * Converts a CSV string into a markdown block formatted for GPT classification
- * @param {string} csvText - Raw CSV content
- * @param {string} filename - Original filename for traceability
- * @returns {string} GPT-formatted markdown block
- */
 function formatCsvForGPT(csvText, filename) {
-  const records = parse(csvText, { columns: true, skip_empty_lines: true });
-  const headers = Object.keys(records[0] || {});
+  const parsed = parse(csvText, {
+    columns: true,
+    skip_empty_lines: true,
+    relax_column_count: true, // allows minor column mismatches
+    on_record: (record, { lines }) => {
+      const keys = Object.keys(record);
+      const hasEmptyRow = keys.every(k => record[k] === undefined || record[k] === '');
+      if (hasEmptyRow) {
+        console.warn(`⚠️ Skipping empty or malformed row on line ${lines}`);
+        return null; // skip this record entirely
+      }
+      return record;
+    }
+  });
 
-  const rowsMarkdown = records.map(row => {
-    const values = headers.map(h => row[h]?.toString().replace(/\n/g, ' ').trim());
+  if (!parsed.length) {
+    console.warn(`⚠️ No valid rows found in ${filename}`);
+    return `### File: ${filename}\n⚠️ No valid rows\n`;
+  }
+
+  const headers = Object.keys(parsed[0]);
+
+  const rowsMarkdown = parsed.map(row => {
+    const values = headers.map(h => row[h]?.toString().replace(/\n/g, ' ').trim() || '');
     return `- ${values.join(' | ')}`;
   }).join('\n');
 
   return [
     `### File: ${filename}`,
-    `**Total Rows:** ${records.length}`,
+    `**Total Rows:** ${parsed.length}`,
     `**Headers:** ${headers.join(', ')}`,
     `**Rows:**`,
     rowsMarkdown,
     ''
   ].join('\n');
 }
+
 
 /**
  * Prepares multiple uploaded CSV files for GPT classification
