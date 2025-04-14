@@ -1,124 +1,68 @@
 const express = require('express');
+const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const fetch = require('node-fetch');
-const fs = require('fs');
-const path = require('path');
+const router = express.Router();
 
-
-
-
-const app = express();
-app.use(express.json());
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-const express = require('express');
-const app = express();
-
-const classifyCsvsRoute = require('./classify-csv'); // adjust path if in /routes/
-
-app.use(express.json());
-app.use('/classify-csv', classifyCsvsRoute); // this is what exposes POST /classify-csvs
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
-
-
-app.post('/', async (req, res) => {
-  const {
-    parent_key,
-    BusinessName,
-    WebsiteLink,
-    EmailAddress,
-    FirstName,
-    UploadFiles = []
-  } = req.body;
-
+router.post('/classify-csvs', async (req, res) => {
   try {
-    console.log("📥 Request received:", req.body);
-    console.log("⚙️ Starting full report process...");
+    const {
+      Business_Name,
+      Website_Link,
+      Email,
+      Name,
+      Files = ''
+    } = req.body;
 
-    // ✅ Load KB from local .md files in the same folder
-    const osText = fs.readFileSync(path.join(__dirname, 'auditless_OS-results.md'), 'utf-8');
-    const rulesText = fs.readFileSync(path.join(__dirname, 'auditless_rules.md'), 'utf-8');
-    const modulesText = fs.readFileSync(path.join(__dirname, 'Lead_Whisperer_SEO_Modules_Full.md'), 'utf-8');
+    console.log("📥 Zapier Data:", { Business_Name, Website_Link, Email, Name });
 
-    const leadDetails = `
-Business Name: ${BusinessName}
-Website: ${WebsiteLink}
-Email: ${EmailAddress}
-First Name: ${FirstName}
+    // 1. Parse comma-separated file URLs
+    const fileUrls = Files.split(',').map(url => url.trim()).filter(Boolean);
+
+    // 2. Convert to { filename, url } format
+    const uploadedCsvs = fileUrls.map(url => {
+      const parts = url.split('/');
+      return {
+        filename: decodeURIComponent(parts[parts.length - 1]),
+        url
+      };
+    });
+
+    // 3. Generate formatted markdown
+    const { formattedMarkdown } = await prepareFilesForGPT(uploadedCsvs);
+
+    // 4. Build GPT prompt
+    const prompt = `
+You will be given full CSV files below. Your job is to classify each row into the correct SEO module.
+Only sort rows. Do not summarize or analyze.
+
+Return valid JSON where each key is a module name (e.g., schema, internal_linking), and each value is an object:
+{
+  "source_file": "filename.csv",
+  "rows": [...]
+}
+
+${formattedMarkdown}
 `;
 
-    // 📊 Fetch and flatten CSVs
-    const allCsvData = [];
-    for (const fileUrl of UploadFiles) {
-      console.log(`📎 Downloading file: ${fileUrl}`);
-      const fileRes = await fetch(fileUrl);
-      const csvText = await fileRes.text();
-      const lines = csvText.trim().split('\n');
-      const headers = lines[0]?.split(',') || [];
-      const rows = lines.slice(1).map(l => l.split(','));
-
-      allCsvData.push({
-        filename: fileUrl.split('/').pop(),
-        headers,
-        sample: rows.slice(0, 5)
-      });
-    }
-
-    const csvSummary = allCsvData.map(file => {
-      return `File: ${file.filename}
-Headers: ${file.headers.join(', ')}
-Sample Rows:
-${file.sample.map(row => row.join(', ')).join('\n')}`;
-    }).join('\n\n');
-
-    const promptMessage = [
-      "You are The Lead Whisperer, an advanced local SEO strategist.\n\n",
-      "You:\n",
-      "- Prioritize clarity, business impact, and lead generation.\n",
-      "- Are direct, confident, and tactical.\n",
-      "- Use the Lead Whisperer OS framework to interpret all data and guide decisions.\n",
-      "- Categorize recommendations as Must-Act, Nice-to-Know, Strategic Fix, or Validate.\n",
-      "- Cross-reference across all uploaded modules using the Modular Awareness Layer.\n",
-      "- Make sure to create a summary report as defined below.\n",
-      "- Make sure to provide the specific markup needed for Zapier.\n\n",
-      "## OS Philosophy & Guidelines\n",
-      osText,
-      "\n\n## Scoring and Rules\n",
-      rulesText,
-      "\n\n## SEO Modules and Audit Components\n",
-      modulesText,
-      "\n\n📥 Lead Details:\n",
-      leadDetails,
-      "\n\n📎 Uploaded CSV Data:\n",
-      csvSummary,
-      "\n\nReturn a single valid JSON object using the format provided in your documentation."
-    ].join('');
-
-    console.log("💬 Sending chat completion...");
-
+    // 5. Send to OpenAI
     const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         model: 'gpt-4-0125-preview',
         messages: [
           { role: 'system', content: 'You are a JSON-only returning assistant. Respond only with valid JSON.' },
-          { role: 'user', content: promptMessage }
+          { role: 'user', content: prompt }
         ],
-        temperature: 0.3
+        temperature: 0.2
       })
     });
 
     const chatJson = await chatRes.json();
     let content = chatJson?.choices?.[0]?.message?.content;
-
-    console.log("🧠 GPT raw content:", content);
 
     if (!content || typeof content !== 'string' || content.length < 10) {
       throw new Error("GPT returned no usable content");
@@ -128,38 +72,22 @@ ${file.sample.map(row => row.join(', ')).join('\n')}`;
       content = content.replace(/```json|```/g, '').trim();
     }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(content);
-    } catch (err) {
-      console.error("❌ Failed to parse GPT response:", content);
-      throw new Error("Invalid JSON returned from GPT");
-    }
+    const parsed = JSON.parse(content);
 
-    console.log("✅ Parsed GPT response:", parsed);
+    console.log("✅ Parsed GPT classification output:", Object.keys(parsed));
 
-    const zapRes = await fetch('https://hooks.zapier.com/hooks/catch/11845590/20e3egd/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        parent_key,
-        summary: parsed.summary,
-        zapier_payload: parsed.zapier_payload
-      })
+    return res.status(200).json({
+      name: Name,
+      email: Email,
+      business: Business_Name,
+      website: Website_Link,
+      modules: parsed
     });
 
-    const zapText = await zapRes.text();
-    console.log("📤 Sent to Zapier. Zapier replied:", zapText);
-
-    return res.status(200).json({ message: "Report complete and sent to Zapier." });
-
   } catch (err) {
-    console.error("🔥 FULL ERROR:", err);
+    console.error("🔥 Zapier classify-csvs error:", err);
     return res.status(500).json({ error: err.message });
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+module.exports = router;
