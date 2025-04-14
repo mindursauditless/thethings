@@ -1,15 +1,12 @@
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
-
-
+// server.js
 const express = require('express');
-const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const fetch = require('node-fetch');
-const router = express.Router();
+const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 
-router.post('/classify-csvs', async (req, res) => {
+const app = express();
+app.use(express.json({ limit: '25mb' }));
+
+app.post('/classify-csvs', async (req, res) => {
   try {
     const {
       Business_Name,
@@ -91,9 +88,18 @@ ${formattedMarkdown}
     });
 
   } catch (err) {
-    console.error("🔥 Zapier classify-csvs error:", err);
+    console.error("🔥 classify-csvs error:", err);
     return res.status(500).json({ error: err.message });
   }
 });
 
-module.exports = router;
+// Fallback route to verify the app is alive
+app.get('/', (req, res) => {
+  res.send('✅ Server is up and running');
+});
+
+// 🔥 START THE SERVER 🔥
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
