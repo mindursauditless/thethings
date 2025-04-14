@@ -3,10 +3,26 @@ const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 
+
+
+
 const app = express();
 app.use(express.json());
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+const express = require('express');
+const app = express();
+
+const classifyCsvsRoute = require('./classify-csv'); // adjust path if in /routes/
+
+app.use(express.json());
+app.use('/classify-csv', classifyCsvsRoute); // this is what exposes POST /classify-csvs
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
+
 
 app.post('/', async (req, res) => {
   const {
