@@ -3,97 +3,33 @@
 const fetch = require('node-fetch');
 const { parse } = require('csv-parse/sync');
 
-// ✂️ Add your own keywords to drop columns you don't want to send to GPT
-const IGNORE_COLUMN_KEYWORDS = [
-  'image', 'css', 'js', 'amp', 'trends', 'number of results', 'serp features by keyword', 'amp', 'covid', 'movie', 'ilr', 'salary', 'viewport', 'certificate', 'encoding', 'hreflang', 'software', 'html', 'twitter', 'open graph'
+const MODULE_KEYWORDS = {
+  schema: ["schema", "structured data", "markup", "json-ld"],
+  internal_links: ["internal link", "internal anchor", "link depth", "links", "orphan", "301"],
+  onsite: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta"],
+  content_redundancy: ["duplicate content", "low word count", "thin content", "similar", "unique"],
+  content_quality: ["duplicate content", "low word count", "thin content", "similar", "unique"],
+  indexing: ["mobile", "4xx", "5xx", "sitemap", "crawl", "index", "301", "broken", "blocked", "canonical", "noindex", "orphan", "robots", "redirect"],
+  information_architecture: ["internal link", "internal anchor", "link depth", "links", "orphan", "301", "mobile", "4xx", "5xx", "sitemap", "crawl", "index", "canonical", "noindex", "robots", "redirect"],
+  gbp: ["reviews", "category", "address"],
+  service_area_pages: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta", "internal link", "internal anchor", "link depth", "links", "orphan", "301", "crawl", "index", "broken", "blocked", "canonical", "noindex", "robots", "redirect"]
+};
+
+const modulesToIncludeRanking = [
+  'content_quality',
+  'information_architecture',
+  'service_area_pages'
 ];
-
-/**
- * Filters out columns whose headers include any ignored keyword
- */
-function filterCsvColumns(records, ignoreList) {
-  const lowerCaseIgnore = ignoreList.map(w => w.toLowerCase());
-  const headers = Object.keys(records[0]);
-
-  const keepHeaders = headers.filter(h => {
-    const isIgnored = lowerCaseIgnore.some(ignore => h.toLowerCase().includes(ignore));
-    if (isIgnored) return false;
-
-    const allEmptyOrZero = records.every(row => {
-      const val = row[h];
-      return val === undefined || val === null || val === '' || val === '0';
-    });
-
-    if (allEmptyOrZero) {
-      console.log(`🗑️ Dropping column with only empty/zero values: ${h}`);
-      return false;
-    }
-
-    return true;
-  });
-
-  const filteredRecords = records.map(row => {
-    const filteredRow = {};
-    for (const key of keepHeaders) {
-      filteredRow[key] = row[key];
-    }
-    return filteredRow;
-  });
-
-  return { headers: keepHeaders, filteredRecords };
-}
-
-/**
- * Converts a CSV string into a markdown block formatted for GPT classification
- * @param {string} csvText - Raw CSV content
- * @param {string} filename - Original filename for traceability
- * @returns {string} GPT-formatted markdown block
- */
-function formatCsvForGPT(csvText, filename) {
-  const parsed = parse(csvText, {
-    columns: true,
-    skip_empty_lines: true,
-    relax_column_count: true,
-    on_record: (record, { lines }) => {
-      const keys = Object.keys(record);
-      const hasEmptyRow = keys.every(k => record[k] === undefined || record[k] === '');
-      if (hasEmptyRow) {
-        console.warn(`⚠️ Skipping empty or malformed row on line ${lines}`);
-        return null;
-      }
-      return record;
-    }
-  });
-
-  if (!parsed.length) {
-    console.warn(`⚠️ No valid rows found in ${filename}`);
-    return `### File: ${filename}\n⚠️ No valid rows\n`;
-  }
-
-  const { headers, filteredRecords } = filterCsvColumns(parsed, IGNORE_COLUMN_KEYWORDS);
-
-  const rowsMarkdown = filteredRecords.map(row => {
-    const values = headers.map(h => row[h]?.toString().replace(/\n/g, ' ').trim() || '');
-    return `- ${values.join(' | ')}`;
-  }).join('\n');
-
-  return [
-    `### File: ${filename}`,
-    `**Total Rows:** ${filteredRecords.length}`,
-    `**Headers:** ${headers.join(', ')}`,
-    `**Rows:**`,
-    rowsMarkdown,
-    ''
-  ].join('\n');
-}
 
 /**
  * Prepares multiple uploaded CSV files for GPT classification
  * @param {Array} uploadedCsvs - [{ filename, url }]
- * @returns {Promise<{ formattedMarkdown: string }>}
+ * @returns {Promise<Object>} - keyed by module name with arrays of relevant rows
  */
 async function prepareFilesForGPT(uploadedCsvs = []) {
-  const chunks = [];
+  const moduleData = Object.fromEntries(
+    Object.keys(MODULE_KEYWORDS).map(key => [key, []])
+  );
 
   for (const { filename, url } of uploadedCsvs) {
     try {
@@ -101,17 +37,37 @@ async function prepareFilesForGPT(uploadedCsvs = []) {
       if (!res.ok) throw new Error(`Failed to download ${filename}`);
 
       const csvText = await res.text();
-      const markdown = formatCsvForGPT(csvText, filename);
-      console.log(`📄 Processed ${filename}, length: ${markdown.length}`);
-      chunks.push(markdown);
+      const records = parse(csvText, {
+        columns: true,
+        skip_empty_lines: true,
+        relax_column_count: true
+      });
+
+      const lowerFilename = filename.toLowerCase();
+      const isRankingFile = lowerFilename.includes('ranking') || lowerFilename.includes('positions');
+
+      for (const row of records) {
+        const rowText = Object.values(row).join(' ').toLowerCase();
+
+        for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
+          if (keywords.some(k => rowText.includes(k))) {
+            moduleData[module].push({ ...row, source_file: filename });
+          }
+        }
+
+        if (isRankingFile) {
+          for (const module of modulesToIncludeRanking) {
+            moduleData[module].push({ ...row, source_file: filename });
+          }
+        }
+      }
+
     } catch (err) {
       console.error(`❌ Error processing ${filename}:`, err);
     }
   }
 
-  return {
-    formattedMarkdown: chunks.join('\n\n')
-  };
+  return moduleData;
 }
 
 module.exports = { prepareFilesForGPT };
