@@ -104,7 +104,7 @@ Note: content quality, service area pages, and information architecture should a
 ...
 
 For each module, include all CSV rows where the Issue column contains a related keyword.  Literally every single row.
-
+Look through every csv each report will have at least one csv that lists all the URLs on the site with columns for h1, h2, meta, etc.... reference more than one csv in your results if multiple data sets are relevant. Having the most data from the tables as possible is the goal. We just want as much data as possible related to each module saved. not summaries of issues found but the actual pages the issues were on.
 `
           
         }
