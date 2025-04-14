@@ -3,23 +3,27 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
+const generateModulePage = require('./generate-module-page'); // ✅ added route
+
 const app = express();
 
-// ✅ Proper JSON parser middleware
+// ✅ JSON parser middleware
 app.use(express.json({ limit: '25mb' }));
 
-// ✅ Catch JSON body parse errors early
+// ✅ Catch JSON parse errors
 app.use((err, req, res, next) => {
   console.error('❌ JSON Parse Error:', err.message);
   res.status(400).json({ error: 'Invalid JSON body' });
 });
+
+// ✅ Mount /generate-module-page and other routes
+app.use('/', generateModulePage);
 
 app.get('/', (req, res) => {
   res.send('✅ Server is up and running with modular CSV classification');
 });
 
 app.post('/classify-csvs', async (req, res) => {
-  // ✅ Respond immediately to Zapier
   res.status(200).json({ message: 'Received. Processing in background...' });
 
   try {
@@ -43,7 +47,6 @@ app.post('/classify-csvs', async (req, res) => {
     });
 
     const moduleData = await prepareFilesForGPT(uploadedCsvs);
-
     console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
 
     if (process.env.ZAPIER_CATCH_HOOK_URL) {
