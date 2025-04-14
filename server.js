@@ -64,7 +64,27 @@ app.post('/classify-csvs', async (req, res) => {
       content: [
         {
           type: 'text',
-          text: `Now that you have all the CSV data, classify the rows into the correct SEO modules. Return valid JSON as described earlier.`
+          text: `You will be given CSV rows of SEO audit data.
+
+Your task is to classify each row into the correct module based on the rules below.
+
+Return a JSON object like this:
+{
+  "schema": {
+    "source_file": "filename.csv",
+    "rows": [
+      { "URL": "...", "Issue": "...", "OtherColumn": "..." }
+    ]
+  },
+  "internal_links": {
+    "source_file": "filename.csv",
+    "rows": [ ... ]
+  }
+}
+
+Do not summarize. Do not analyze. Just group the full rows under the right modules.
+Only include rows that are clearly relevant. Skip empty or non-actionable rows.
+`
         }
       ]
     });
