@@ -13,7 +13,7 @@ function loadModulePrompt(moduleName, rows = []) {
   const os = fs.existsSync(osPath) ? fs.readFileSync(osPath, 'utf8') : '';
 
   return `
-You are generating an SEO audit report for the "${moduleName}" module.
+You are generating an SEO audit report for the "${moduleName}" module. Format any lists (issues, action items) as bulleted strings, not arrays. Your output should be immediately ready to be sent and easily understood by Notion or Zapier
 
 ## Universal OS Guidelines
 ${os}
