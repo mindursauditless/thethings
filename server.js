@@ -5,7 +5,12 @@ const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const app = express();
 app.use(express.json({ limit: '25mb' }));
 
-// 🧠 Directly define the route on `app`
+// Health check
+app.get('/', (req, res) => {
+  res.send('✅ Server is running');
+});
+
+// Classification route
 app.post('/classify-csvs', async (req, res) => {
   try {
     const {
@@ -88,8 +93,8 @@ ${formattedMarkdown}
   }
 });
 
-// Keepalive root
-app.get('/', (req, res) => res.send('✅ Server is up and running'));
-
+// Start the server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
