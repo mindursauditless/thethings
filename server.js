@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const fetch = require('node-fetch');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
@@ -6,6 +5,7 @@ const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const app = express();
 app.use(express.json({ limit: '25mb' }));
 
+// 🧠 Directly define the route on `app`
 app.post('/classify-csvs', async (req, res) => {
   try {
     const {
@@ -18,10 +18,8 @@ app.post('/classify-csvs', async (req, res) => {
 
     console.log("📥 Zapier Data:", { Business_Name, Website_Link, Email, Name });
 
-    // 1. Parse comma-separated file URLs
     const fileUrls = Files.split(',').map(url => url.trim()).filter(Boolean);
 
-    // 2. Convert to { filename, url } format
     const uploadedCsvs = fileUrls.map(url => {
       const parts = url.split('/');
       return {
@@ -30,10 +28,8 @@ app.post('/classify-csvs', async (req, res) => {
       };
     });
 
-    // 3. Generate formatted markdown
     const { formattedMarkdown } = await prepareFilesForGPT(uploadedCsvs);
 
-    // 4. Build GPT prompt
     const prompt = `
 You will be given full CSV files below. Your job is to classify each row into the correct SEO module.
 Only sort rows. Do not summarize or analyze.
@@ -45,9 +41,8 @@ Return valid JSON where each key is a module name (e.g., schema, internal_linkin
 }
 
 ${formattedMarkdown}
-`;
+    `;
 
-    // 5. Send to OpenAI
     const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -93,13 +88,8 @@ ${formattedMarkdown}
   }
 });
 
-// Fallback route to verify the app is alive
-app.get('/', (req, res) => {
-  res.send('✅ Server is up and running');
-});
+// Keepalive root
+app.get('/', (req, res) => res.send('✅ Server is up and running'));
 
-// 🔥 START THE SERVER 🔥
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
