@@ -1,16 +1,20 @@
+// server.js — using Assistants API
+
 const express = require('express');
 const fetch = require('node-fetch');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
+const { OpenAI } = require('openai');
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
 
-// Health check
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); // ✅ Set this in Railway or your .env
+const ASSISTANT_ID = process.env.OPENAI_ASSISTANT_ID; // ✅ Set this too
+
 app.get('/', (req, res) => {
-  res.send('✅ Server is running');
+  res.send('✅ Server is up and running with Assistants API');
 });
 
-// Classification route
 app.post('/classify-csvs', async (req, res) => {
   try {
     const {
@@ -24,7 +28,6 @@ app.post('/classify-csvs', async (req, res) => {
     console.log("📥 Zapier Data:", { Business_Name, Website_Link, Email, Name });
 
     const fileUrls = Files.split(',').map(url => url.trim()).filter(Boolean);
-
     const uploadedCsvs = fileUrls.map(url => {
       const parts = url.split('/');
       return {
@@ -35,66 +38,75 @@ app.post('/classify-csvs', async (req, res) => {
 
     const { formattedMarkdown } = await prepareFilesForGPT(uploadedCsvs);
 
-    const prompt = `
-You will be given full CSV files below. Your job is to classify each row into the correct SEO module.
-Only sort rows. Do not summarize or analyze.
+    console.log("🧠 Total Markdown Length:", formattedMarkdown.length);
 
-Return valid JSON where each key is a module name (e.g., schema, internal_linking), and each value is an object:
+    // 🧠 Assistants API flow
+    const thread = await openai.beta.threads.create();
+
+    await openai.beta.threads.messages.create(thread.id, {
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: `Here is the full CSV data from an SEO audit. Classify each row into the correct SEO module.
+
+Only classify. Do not summarize. Return only valid JSON with modules as keys:
+
 {
-  "source_file": "filename.csv",
-  "rows": [...]
+  "module_name": {
+    "source_file": "filename.csv",
+    "rows": [...]
+  }
 }
 
-${formattedMarkdown}
-    `;
+CSV Data:
 
-    const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-4-0125-preview',
-        messages: [
-          { role: 'system', content: 'You are a JSON-only returning assistant. Respond only with valid JSON.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.2
-      })
+${formattedMarkdown}`
+        }
+      ]
     });
 
-    const chatJson = await chatRes.json();
-    let content = chatJson?.choices?.[0]?.message?.content;
-
-    if (!content || typeof content !== 'string' || content.length < 10) {
-      throw new Error("GPT returned no usable content");
-    }
-
-    if (content.startsWith('```json')) {
-      content = content.replace(/```json|```/g, '').trim();
-    }
-
-    const parsed = JSON.parse(content);
-
-    console.log("✅ Parsed GPT classification output:", Object.keys(parsed));
-
-    return res.status(200).json({
-      name: Name,
-      email: Email,
-      business: Business_Name,
-      website: Website_Link,
-      modules: parsed
+    const run = await openai.beta.threads.runs.create(thread.id, {
+      assistant_id: ASSISTANT_ID,
+      instructions: 'Only return valid JSON, nothing else.'
     });
 
+    let runStatus = run.status;
+    let result;
+
+    while (runStatus !== 'completed' && runStatus !== 'failed') {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const statusCheck = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      runStatus = statusCheck.status;
+    }
+
+    if (runStatus === 'completed') {
+      const messages = await openai.beta.threads.messages.list(thread.id);
+      const latest = messages.data.find(m => m.role === 'assistant');
+      const content = latest?.content?.[0]?.text?.value?.trim();
+
+      if (!content || content.length < 10) {
+        throw new Error("GPT returned no usable content");
+      }
+
+      const cleaned = content.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+
+      return res.status(200).json({
+        name: Name,
+        email: Email,
+        business: Business_Name,
+        website: Website_Link,
+        modules: parsed
+      });
+    } else {
+      throw new Error("Assistant run failed");
+    }
   } catch (err) {
-    console.error("🔥 classify-csvs error:", err);
+    console.error("🔥 Assistants API classify-csvs error:", err);
     return res.status(500).json({ error: err.message });
   }
 });
 
-// Start the server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
