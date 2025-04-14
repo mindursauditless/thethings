@@ -103,5 +103,23 @@ app.post('/classify-csvs', async (req, res) => {
   }
 });
 
+// Replace with your actual Zapier Catch Hook URL
+const ZAPIER_CATCH_HOOK_URL = process.env.ZAPIER_CATCH_HOOK_URL;
+
+await fetch(ZAPIER_CATCH_HOOK_URL, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: Name,
+    email: Email,
+    business: Business_Name,
+    website: Website_Link,
+    modules: parsed
+  })
+});
+
+console.log("📤 Sent parsed modules to Zapier");
+
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
