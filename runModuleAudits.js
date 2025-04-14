@@ -48,14 +48,14 @@ async function runModuleAudits(parsedModules) {
       console.log(`✅ Completed audit for ${moduleName}`);
 
       // 🔁 Send to Zapier webhook with routing key
-      if (process.env.ZAPIER_CATCH_HOOK_URL) {
+      if (process.env.ZAPIER_FINAL_HOOK_URL) {
         const zapPayload = {
           module: moduleName, // ✅ routing key
           summary: parsed.summary,
           ...parsed.zapier_payload
         };
 
-        await fetch(process.env.ZAPIER_CATCH_HOOK_URL, {
+        await fetch(process.env.ZAPIER_FINAL_HOOK_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(zapPayload)
