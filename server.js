@@ -4,7 +4,15 @@ const express = require('express');
 const fetch = require('node-fetch');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const app = express();
+
+// ✅ Proper JSON parser middleware
 app.use(express.json({ limit: '25mb' }));
+
+// ✅ Catch JSON body parse errors early
+app.use((err, req, res, next) => {
+  console.error('❌ JSON Parse Error:', err.message);
+  res.status(400).json({ error: 'Invalid JSON body' });
+});
 
 app.get('/', (req, res) => {
   res.send('✅ Server is up and running with modular CSV classification');
@@ -52,7 +60,8 @@ app.post('/classify-csvs', async (req, res) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(zapPayload)
       })
-        .then(() => console.log('📤 Sent cleaned module data to Zapier'))
+        .then(res => res.text())
+        .then(text => console.log('📤 Zapier responded:', text))
         .catch(err => console.error('❌ Failed to send to Zapier:', err));
     }
   } catch (err) {
