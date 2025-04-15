@@ -1,4 +1,4 @@
-// generate-module-page.js (patched to run GPT and save returned strategy)
+// generate-module-page.js — patched to send large content in chunks for Assistants API
 
 const fetch = require('node-fetch');
 const fs = require('fs');
@@ -11,6 +11,7 @@ require('dotenv').config();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const SUPABASE_PROJECT = process.env.SUPABASE_URL.replace('https://', '');
 const RAW_BUCKET = 'raw-inputs';
+const MAX_CHUNK_SIZE = 950_000; // leave buffer for headers
 
 async function generateModulePage(thread_id, moduleName) {
   try {
@@ -33,12 +34,21 @@ async function generateModulePage(thread_id, moduleName) {
 
     const prompt = loadModulePrompt(moduleName, rows);
 
-    // 🧠 Run GPT using Assistants API
+    // Split long text into smaller chunks
     const thread = await openai.beta.threads.create();
-    await openai.beta.threads.messages.create(thread.id, {
-      role: 'user',
-      content: [{ type: 'text', text: prompt }]
-    });
+    console.log(`🧵 Created thread: ${thread.id}`);
+
+    const chunks = [];
+    for (let i = 0; i < prompt.length; i += MAX_CHUNK_SIZE) {
+      chunks.push(prompt.slice(i, i + MAX_CHUNK_SIZE));
+    }
+
+    for (const chunk of chunks) {
+      await openai.beta.threads.messages.create(thread.id, {
+        role: 'user',
+        content: [{ type: 'text', text: chunk }]
+      });
+    }
 
     const run = await openai.beta.threads.runs.create(thread.id, {
       assistant_id: process.env.OPENAI_ASSISTANT_ID,
@@ -96,17 +106,4 @@ async function generateAllModules(thread_id, modules = []) {
   return links;
 }
 
-generateAllModules("782dec75-bc3e-435c-8d12-815e405595a7", [
-  "schema",
-  "internal_links",
-  "onsite",
-  "content_redundancy",
-  "content_quality",
-  "indexing",
-  "information_architecture",
-  "gbp",
-  "service_area_pages"
-]);
-
-
-//module.exports = { generateModulePage, generateAllModules };
+module.exports = { generateModulePage, generateAllModules };
