@@ -2,7 +2,7 @@
 
 const fetch = require('node-fetch');
 const loadModulePrompt = require('./moduleprompt');
-const uploadMarkdownToSupabase = require('./upload-markdown-to-supabase');
+const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 const fs = require('fs');
 const path = require('path');
 const { OpenAI } = require('openai');
