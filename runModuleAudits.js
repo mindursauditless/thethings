@@ -1,4 +1,4 @@
-// runModuleAudits.js — updated to actually run
+// runModuleAudits.js — with 500 row cap and empty row filtering
 
 const fetch = require('node-fetch');
 const loadModulePrompt = require('./moduleprompt');
@@ -47,9 +47,15 @@ if (!thread_id) {
         continue;
       }
 
-      console.log(`📦 ${rows.length} rows loaded for module '${moduleName}'`);
+      const filteredRows = rows.filter(row =>
+        Object.values(row).some(val => val !== null && val !== '' && val !== undefined)
+      );
 
-      const prompt = loadModulePrompt(moduleName, rows);
+      const trimmedRows = filteredRows.slice(0, 500);
+
+      console.log(`📦 ${trimmedRows.length} usable rows for module '${moduleName}'`);
+
+      const prompt = loadModulePrompt(moduleName, trimmedRows);
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4-0125-preview',
