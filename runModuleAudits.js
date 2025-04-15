@@ -63,4 +63,17 @@ async function runModuleAudits(thread_id, moduleNames = []) {
   }
 }
 
-module.exports = { runModuleAudits };
+generateAllModules("782dec75-bc3e-435c-8d12-815e405595a7", [
+  "schema",
+  "internal_links",
+  "onsite",
+  "content_redundancy",
+  "content_quality",
+  "indexing",
+  "information_architecture",
+  "gbp",
+  "service_area_pages"
+]);
+
+
+//module.exports = { runModuleAudits };
