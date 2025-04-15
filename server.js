@@ -1,11 +1,11 @@
-// server.js — now automatically generates markdown reports after classification
+// server.js — now correctly importing runModuleAudits as a named export
 
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const generateModulePage = require('./generate-module-page');
-const runModuleAudits = require('./runModuleAudits');
+const { runModuleAudits } = require('./runModuleAudits');
 
 const app = express();
 
