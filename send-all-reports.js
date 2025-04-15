@@ -14,7 +14,7 @@ const supabase = createClient(
 );
 
 (async () => {
-  const folderPath = `reports/${thread_id}`;
+  const folderPath = `reports/reports/${thread_id}`;
   const { data, error } = await supabase
     .storage
     .from('reports')
@@ -27,10 +27,19 @@ const supabase = createClient(
 
   for (const file of data) {
     const moduleName = file.name.replace('.md', '');
-    const fileUrl = `https://${process.env.SUPABASE_URL.replace('https://', '')}/storage/v1/object/public/reports/${thread_id}/${file.name}`;
+
+    const { data: signedUrl } = await supabase
+      .storage
+      .from('reports')
+      .createSignedUrl(`${folderPath}/${file.name}`, 600);
+
+    if (!signedUrl?.signedURL) {
+      console.warn(`⏩ Skipping ${file.name} — could not generate signed URL`);
+      continue;
+    }
 
     try {
-      const res = await fetch(fileUrl);
+      const res = await fetch(signedUrl.signedURL);
       if (!res.ok) throw new Error(`Failed to fetch file (${res.status})`);
       const content = await res.text();
 
