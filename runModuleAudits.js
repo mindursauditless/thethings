@@ -1,4 +1,4 @@
-// runModuleAudits.js — fixed import of loadModulePrompt
+// runModuleAudits.js — pulls module JSON from Supabase and generates Markdown
 
 const fetch = require('node-fetch');
 const loadModulePrompt = require('./moduleprompt');
@@ -7,16 +7,30 @@ const path = require('path');
 const { OpenAI } = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-async function runModuleAudits(modules) {
-  for (const [moduleName, rows] of Object.entries(modules)) {
-    if (!rows || rows.length === 0) {
-      console.log(`⏩ Skipping ${moduleName} — no rows to analyze.`);
-      continue;
-    }
+const SUPABASE_PROJECT = process.env.SUPABASE_URL.replace('https://', '');
+const BUCKET = 'raw-inputs';
 
-    console.log(`🧠 Auditing module: ${moduleName} (${rows.length} rows)`);
+async function runModuleAudits(thread_id, moduleNames = []) {
+  for (const moduleName of moduleNames) {
+    console.log(`🧠 Auditing module: ${moduleName}`);
 
     try {
+      const supabaseUrl = `https://${SUPABASE_PROJECT}/storage/v1/object/public/${BUCKET}/raw/${thread_id}/${moduleName}.json`;
+      const fileRes = await fetch(supabaseUrl);
+
+      if (!fileRes.ok) {
+        console.warn(`⏩ Skipping ${moduleName} — could not fetch file (${fileRes.status})`);
+        continue;
+      }
+
+      const rows = await fileRes.json();
+      if (!Array.isArray(rows) || rows.length === 0) {
+        console.warn(`⏩ Skipping ${moduleName} — no rows in Supabase file`);
+        continue;
+      }
+
+      console.log(`📦 ${rows.length} rows loaded for module '${moduleName}'`);
+
       const prompt = loadModulePrompt(moduleName, rows);
 
       const response = await openai.chat.completions.create({
