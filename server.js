@@ -1,7 +1,8 @@
-// server.js — using modular classification and sending modules individually to Zapier
+// server.js — now serving reports from /reports directory
 
 const express = require('express');
 const fetch = require('node-fetch');
+const path = require('path');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const generateModulePage = require('./generate-module-page');
 
@@ -15,6 +16,9 @@ app.use((err, req, res, next) => {
   console.error('❌ JSON Parse Error:', err.message);
   res.status(400).json({ error: 'Invalid JSON body' });
 });
+
+// ✅ Serve static markdown files
+app.use('/reports', express.static(path.join(__dirname, 'reports')));
 
 // ✅ Mount /generate-module-page and other routes
 app.use('/', generateModulePage);
@@ -49,25 +53,9 @@ app.post('/classify-csvs', async (req, res) => {
     const moduleData = await prepareFilesForGPT(uploadedCsvs);
     console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
 
-    // ✅ Send each module individually to Zapier to avoid size limits
     for (const [module, rows] of Object.entries(moduleData)) {
       if (rows.length === 0) continue;
-
-      await fetch(process.env.ZAPIER_FINAL_HOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          module,
-          name: Name,
-          email: Email,
-          business: Business_Name,
-          website: Website_Link,
-          rows
-        })
-      })
-        .then(res => res.text())
-        .then(text => console.log(`📤 Sent module: ${module} — Zapier responded:`, text))
-        .catch(err => console.error(`❌ Failed to send module: ${module}`, err));
+      console.log(`📦 Module '${module}' ready with ${rows.length} rows.`);
     }
   } catch (err) {
     console.error("🔥 classify-csvs error:", err);
