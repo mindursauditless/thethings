@@ -1,4 +1,4 @@
-// generate-module-page.js (patched to auto-upload to Supabase)
+// generate-module-page.js (patched fetch path)
 
 const fetch = require('node-fetch');
 const fs = require('fs');
@@ -9,13 +9,14 @@ const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const SUPABASE_PROJECT = process.env.SUPABASE_URL.replace('https://', '');
-const BUCKET = 'raw-inputs';
+const RAW_BUCKET = 'raw-inputs';
 
 async function generateModulePage(thread_id, moduleName) {
   try {
     console.log(`🟨 [START] Generating report for module: ${moduleName} (Thread: ${thread_id})`);
 
-    const fileUrl = `https://${SUPABASE_PROJECT}/storage/v1/object/public/${BUCKET}/raw/${thread_id}/${moduleName}.json`;
+    const fileUrl = `https://${SUPABASE_PROJECT}/storage/v1/object/public/${RAW_BUCKET}/raw/${thread_id}/${moduleName}.json`;
+    console.log(`🌐 Fetching: ${fileUrl}`);
     const fileRes = await fetch(fileUrl);
 
     if (!fileRes.ok) {
