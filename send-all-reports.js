@@ -14,7 +14,7 @@ const supabase = createClient(
 );
 
 (async () => {
-  const folderPath = `reports/reports/${thread_id}`;
+  const folderPath = `reports/${thread_id}`;
   const { data, error } = await supabase
     .storage
     .from('reports')
