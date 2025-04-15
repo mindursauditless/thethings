@@ -1,4 +1,4 @@
-// server.js — saves raw inputs to Supabase
+// server.js — Supabase-only raw input storage (GPT audit disabled for now)
 
 const express = require('express');
 const fetch = require('node-fetch');
@@ -6,7 +6,6 @@ const fs = require('fs');
 const path = require('path');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const generateModulePage = require('./generate-module-page');
-const { runModuleAudits } = require('./runModuleAudits');
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -24,14 +23,14 @@ app.use((err, req, res, next) => {
   res.status(400).json({ error: 'Invalid JSON body' });
 });
 
-// ✅ Serve markdown reports (if needed)
+// ✅ Serve markdown reports if needed
 app.use('/reports', express.static(path.join(__dirname, 'reports')));
 
-// ✅ Mount audit generator
+// ✅ Mount GPT module generation route
 app.use('/', generateModulePage);
 
 app.get('/', (req, res) => {
-  res.send('✅ Server is up and running with Supabase integration');
+  res.send('✅ Server is up and running with Supabase raw input storage');
 });
 
 app.post('/classify-csvs', async (req, res) => {
@@ -82,7 +81,9 @@ app.post('/classify-csvs', async (req, res) => {
       }
     }
 
-    await runModuleAudits(moduleData);
+    // GPT auditing is currently disabled to conserve credits
+    // await runModuleAudits(moduleData);
+
   } catch (err) {
     console.error("🔥 classify-csvs error:", err);
   }
