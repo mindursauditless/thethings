@@ -30,3 +30,6 @@ ${JSON.stringify(rows.slice(0, 25), null, 2)}
 Respond with only valid JSON using the structure in the deliverable section.
 `;
 }
+
+module.exports = loadModulePrompt;
+
