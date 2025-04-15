@@ -25,9 +25,10 @@ const supabase = createClient(
     return;
   }
 
+  const allModules = {};
+
   for (const file of data) {
     const moduleName = file.name.replace('.md', '');
-
     const publicUrl = `https://${process.env.SUPABASE_URL.replace('https://', '')}/storage/v1/object/public/reports/reports/${thread_id}/${file.name}`;
 
     try {
@@ -35,9 +36,15 @@ const supabase = createClient(
       if (!res.ok) throw new Error(`Failed to fetch file (${res.status})`);
       const content = await res.text();
 
-      await sendReportToZapier({ thread_id, moduleName, content });
+      allModules[moduleName] = content;
     } catch (err) {
-      console.error(`❌ Error sending ${moduleName}:`, err.message);
+      console.error(`❌ Error loading ${moduleName}:`, err.message);
     }
+  }
+
+  try {
+    await sendReportToZapier({ thread_id, modules: allModules });
+  } catch (err) {
+    console.error('❌ Failed to send combined payload to Zapier:', err.message);
   }
 })();
