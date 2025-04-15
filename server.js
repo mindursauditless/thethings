@@ -1,4 +1,4 @@
-// server.js — now also saving raw classified data per module to /raw/*.json
+// server.js — saves raw inputs to Supabase
 
 const express = require('express');
 const fetch = require('node-fetch');
@@ -7,6 +7,11 @@ const path = require('path');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const generateModulePage = require('./generate-module-page');
 const { runModuleAudits } = require('./runModuleAudits');
+const { createClient } = require('@supabase/supabase-js');
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const app = express();
 
@@ -19,15 +24,14 @@ app.use((err, req, res, next) => {
   res.status(400).json({ error: 'Invalid JSON body' });
 });
 
-// ✅ Serve markdown reports and raw module data
+// ✅ Serve markdown reports (if needed)
 app.use('/reports', express.static(path.join(__dirname, 'reports')));
-app.use('/raw', express.static(path.join(__dirname, 'raw')));
 
-// ✅ Mount other routes
+// ✅ Mount audit generator
 app.use('/', generateModulePage);
 
 app.get('/', (req, res) => {
-  res.send('✅ Server is up and running with modular CSV classification and audit generation');
+  res.send('✅ Server is up and running with Supabase integration');
 });
 
 app.post('/classify-csvs', async (req, res) => {
@@ -39,7 +43,8 @@ app.post('/classify-csvs', async (req, res) => {
       Website_Link,
       Email,
       Name,
-      Files = ''
+      Files = '',
+      thread_id = 'no-thread-id'
     } = req.body;
 
     console.log("📥 Zapier Data:", { Business_Name, Website_Link, Email, Name });
@@ -56,18 +61,25 @@ app.post('/classify-csvs', async (req, res) => {
     const moduleData = await prepareFilesForGPT(uploadedCsvs);
     console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
 
-    const rawDir = path.join(__dirname, 'raw');
-    if (!fs.existsSync(rawDir)) {
-      fs.mkdirSync(rawDir);
-    }
-
     for (const [module, rows] of Object.entries(moduleData)) {
       console.log(`📦 Module '${module}' ready with ${rows.length} rows.`);
       if (rows.length === 0) continue;
 
-      const outPath = path.join(rawDir, `${module}.json`);
-      fs.writeFileSync(outPath, JSON.stringify(rows, null, 2), 'utf8');
-      console.log(`💾 Saved: /raw/${module}.json`);
+      const jsonString = JSON.stringify(rows, null, 2);
+      const uploadPath = `raw/${thread_id}/${module}.json`;
+      const { error } = await supabase
+        .storage
+        .from('raw-inputs')
+        .upload(uploadPath, Buffer.from(jsonString), {
+          contentType: 'application/json',
+          upsert: true
+        });
+
+      if (error) {
+        console.error(`❌ Failed to upload ${uploadPath} to Supabase:`, error);
+      } else {
+        console.log(`✅ Uploaded to Supabase: ${uploadPath}`);
+      }
     }
 
     await runModuleAudits(moduleData);
