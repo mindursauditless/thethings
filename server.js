@@ -1,7 +1,8 @@
-// server.js — now correctly importing runModuleAudits as a named export
+// server.js — now also saving raw classified data per module to /raw/*.json
 
 const express = require('express');
 const fetch = require('node-fetch');
+const fs = require('fs');
 const path = require('path');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const generateModulePage = require('./generate-module-page');
@@ -18,14 +19,15 @@ app.use((err, req, res, next) => {
   res.status(400).json({ error: 'Invalid JSON body' });
 });
 
-// ✅ Serve static markdown files
+// ✅ Serve markdown reports and raw module data
 app.use('/reports', express.static(path.join(__dirname, 'reports')));
+app.use('/raw', express.static(path.join(__dirname, 'raw')));
 
-// ✅ Mount /generate-module-page and other routes
+// ✅ Mount other routes
 app.use('/', generateModulePage);
 
 app.get('/', (req, res) => {
-  res.send('✅ Server is up and running with modular CSV classification');
+  res.send('✅ Server is up and running with modular CSV classification and audit generation');
 });
 
 app.post('/classify-csvs', async (req, res) => {
@@ -54,12 +56,20 @@ app.post('/classify-csvs', async (req, res) => {
     const moduleData = await prepareFilesForGPT(uploadedCsvs);
     console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
 
-    for (const [module, rows] of Object.entries(moduleData)) {
-      if (rows.length === 0) continue;
-      console.log(`📦 Module '${module}' ready with ${rows.length} rows.`);
+    const rawDir = path.join(__dirname, 'raw');
+    if (!fs.existsSync(rawDir)) {
+      fs.mkdirSync(rawDir);
     }
 
-    // ✅ Run module audits and save markdown reports
+    for (const [module, rows] of Object.entries(moduleData)) {
+      console.log(`📦 Module '${module}' ready with ${rows.length} rows.`);
+      if (rows.length === 0) continue;
+
+      const outPath = path.join(rawDir, `${module}.json`);
+      fs.writeFileSync(outPath, JSON.stringify(rows, null, 2), 'utf8');
+      console.log(`💾 Saved: /raw/${module}.json`);
+    }
+
     await runModuleAudits(moduleData);
   } catch (err) {
     console.error("🔥 classify-csvs error:", err);
