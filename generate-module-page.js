@@ -96,4 +96,17 @@ async function generateAllModules(thread_id, modules = []) {
   return links;
 }
 
-module.exports = { generateModulePage, generateAllModules };
+generateAllModules("782dec75-bc3e-435c-8d12-815e405595a7", [
+  "schema",
+  "internal_links",
+  "onsite",
+  "content_redundancy",
+  "content_quality",
+  "indexing",
+  "information_architecture",
+  "gbp",
+  "service_area_pages"
+]);
+
+
+//module.exports = { generateModulePage, generateAllModules };
