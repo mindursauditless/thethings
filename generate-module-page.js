@@ -78,10 +78,10 @@ Format all lists (issues, action items, URLs) using bullets. Return valid Markdo
     console.log(`📁 GPT output saved to: ${outPath} (${stats.size} bytes)`);
 
     res.status(200).json({
-      module,
-      markdown_report_path: outPath,
-      size_in_bytes: stats.size
+      status: "✅ Report saved to file",
+      module
     });
+
   } catch (err) {
     console.error(`❌ Failed to generate module page:`, err);
     res.status(500).json({ error: err.message });
