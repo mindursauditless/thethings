@@ -1,7 +1,7 @@
-// runModuleAudits.js — updated to support flat module: rows[] structure
+// runModuleAudits.js — fixed import of loadModulePrompt
 
 const fetch = require('node-fetch');
-const loadModulePrompt = require('./moduleprompt').loadModulePrompt;
+const { loadModulePrompt } = require('./moduleprompt');
 const fs = require('fs');
 const path = require('path');
 const { OpenAI } = require('openai');
