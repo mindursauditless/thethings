@@ -97,9 +97,9 @@ const { sendReportToZapier } = require('./zapier-report-hook');
 
 (async () => {
   await sendReportToZapier({
-    thread_id: 'abc123',
-    moduleName: 'internal_links',
-    content: '# Test markdown\n- Sample item\n- More notes'
+    thread_id,
+    moduleName,
+    content
   });
 })();
 
