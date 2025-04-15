@@ -1,4 +1,4 @@
-// runModuleAudits.js — pulls module JSON from Supabase and generates Markdown
+// runModuleAudits.js — updated to actually run
 
 const fetch = require('node-fetch');
 const loadModulePrompt = require('./moduleprompt');
@@ -9,9 +9,26 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const SUPABASE_PROJECT = process.env.SUPABASE_URL.replace('https://', '');
 const BUCKET = 'raw-inputs';
-const { generateAllModules } = require('./generate-module-page');
 
-async function runModuleAudits(thread_id, moduleNames = []) {
+const moduleNames = [
+  'schema',
+  'internal_links',
+  'onsite',
+  'content_redundancy',
+  'content_quality',
+  'indexing',
+  'information_architecture',
+  'gbp',
+  'service_area_pages'
+];
+
+const thread_id = process.argv[2];
+if (!thread_id) {
+  console.error('❌ Please provide a thread_id as the first argument');
+  process.exit(1);
+}
+
+(async () => {
   for (const moduleName of moduleNames) {
     console.log(`🧠 Auditing module: ${moduleName}`);
 
@@ -55,13 +72,11 @@ async function runModuleAudits(thread_id, moduleNames = []) {
         fs.mkdirSync(reportsDir);
       }
 
-      const filePath = path.join(reportsDir, `${moduleName}.md`);
+      const filePath = path.join(reportsDir, `${thread_id}--${moduleName}.md`);
       fs.writeFileSync(filePath, content, 'utf8');
-      console.log(`✅ Saved report: /reports/${moduleName}.md`);
+      console.log(`✅ Saved report: /reports/${thread_id}--${moduleName}.md`);
     } catch (err) {
       console.error(`❌ Error generating module report for ${moduleName}:`, err);
     }
   }
-}
-
-module.exports = { runModuleAudits };
+})();
