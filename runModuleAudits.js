@@ -51,7 +51,7 @@ if (!thread_id) {
         Object.values(row).some(val => val !== null && val !== '' && val !== undefined)
       );
 
-      const trimmedRows = filteredRows.slice(0, 500);
+      const trimmedRows = filteredRows.slice(0, 400);
 
       console.log(`📦 ${trimmedRows.length} usable rows for module '${moduleName}'`);
 
