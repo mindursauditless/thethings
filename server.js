@@ -1,36 +1,22 @@
-// server.js — Supabase-only raw input storage (GPT audit disabled for now)
+// server.js — Supabase upload with fetch (Option A)
 
 const express = require('express');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
-const generateModulePage = require('./generate-module-page');
-const supabase = require('./supabaseClient');
-
+const { v4: uuidv4 } = require('uuid');
+require('dotenv').config();
 
 const app = express();
-
-// ✅ JSON parser middleware
 app.use(express.json({ limit: '25mb' }));
 
-// ✅ Catch JSON parse errors
-app.use((err, req, res, next) => {
-  console.error('❌ JSON Parse Error:', err.message);
-  res.status(400).json({ error: 'Invalid JSON body' });
-});
-
-// ✅ Serve markdown reports if needed
-app.use('/reports', express.static(path.join(__dirname, 'reports')));
-
-// ✅ Mount GPT module generation route
-app.use('/', generateModulePage);
-
 app.get('/', (req, res) => {
-  res.send('✅ Server is up and running with Supabase raw input storage');
+  res.send('✅ Server is up and running with Supabase fetch uploader');
 });
 
 app.post('/classify-csvs', async (req, res) => {
+  console.log("⚡️ classify-csvs triggered");
   res.status(200).json({ message: 'Received. Processing in background...' });
 
   try {
@@ -40,10 +26,11 @@ app.post('/classify-csvs', async (req, res) => {
       Email,
       Name,
       Files = '',
-      thread_id = 'no-thread-id'
+      thread_id = uuidv4() // fallback in case it's not passed
     } = req.body;
 
     console.log("📥 Zapier Data:", { Business_Name, Website_Link, Email, Name });
+    console.time("⏱️ Total classification time");
 
     const fileUrls = Files.split(',').map(url => url.trim()).filter(Boolean);
     const uploadedCsvs = fileUrls.map(url => {
@@ -54,33 +41,45 @@ app.post('/classify-csvs', async (req, res) => {
       };
     });
 
+    console.time("⏱️ prepareFilesForGPT");
     const moduleData = await prepareFilesForGPT(uploadedCsvs);
+    console.timeEnd("⏱️ prepareFilesForGPT");
     console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
+
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_KEY = process.env.SUPABASE_KEY;
+    const BUCKET = 'raw-inputs';
 
     for (const [module, rows] of Object.entries(moduleData)) {
       console.log(`📦 Module '${module}' ready with ${rows.length} rows.`);
       if (rows.length === 0) continue;
 
       const jsonString = JSON.stringify(rows, null, 2);
-      const uploadPath = `raw/${thread_id}/${module}.json`;
-      const { error } = await supabase
-        .storage
-        .from('raw-inputs')
-        .upload(uploadPath, Buffer.from(jsonString), {
-          contentType: 'application/json',
-          upsert: true
-        });
+      const path = `raw/${thread_id}/${module}.json`;
 
-      if (error) {
-        console.error(`❌ Failed to upload ${uploadPath} to Supabase:`, error);
+      const endpoint = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`;
+      console.time(`⏫ Upload ${path}`);
+
+      const uploadRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: jsonString
+      });
+
+      const result = await uploadRes.text();
+      console.timeEnd(`⏫ Upload ${path}`);
+
+      if (!uploadRes.ok) {
+        console.error(`❌ Failed to upload ${path} to Supabase:`, result);
       } else {
-        console.log(`✅ Uploaded to Supabase: ${uploadPath}`);
+        console.log(`✅ Uploaded to Supabase: ${path}`);
       }
     }
 
-    // GPT auditing is currently disabled to conserve credits
-    // await runModuleAudits(moduleData);
-
+    console.timeEnd("⏱️ Total classification time");
   } catch (err) {
     console.error("🔥 classify-csvs error:", err);
   }
