@@ -9,6 +9,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const SUPABASE_PROJECT = process.env.SUPABASE_URL.replace('https://', '');
 const BUCKET = 'raw-inputs';
+const { generateAllModules } = require('./generate-module-page');
 
 async function runModuleAudits(thread_id, moduleNames = []) {
   for (const moduleName of moduleNames) {
