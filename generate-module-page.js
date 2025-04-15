@@ -1,4 +1,4 @@
-// generate-module-page.js
+// generate-module-page.js — now saves Markdown reports to /reports folder
 
 const express = require('express');
 const router = express.Router();
@@ -72,16 +72,22 @@ Format all lists (issues, action items, URLs) using bullets. Return valid Markdo
     console.log('📦 Full GPT Output (raw content):');
     console.log(content);
 
-    const outPath = path.join(__dirname, `temp-output-${module}.md`);
+    const reportsDir = path.join(__dirname, 'reports');
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir);
+    }
+
+    const outPath = path.join(reportsDir, `${module}.md`);
     fs.writeFileSync(outPath, content, 'utf8');
     const stats = fs.statSync(outPath);
     console.log(`📁 GPT output saved to: ${outPath} (${stats.size} bytes)`);
 
     res.status(200).json({
-      status: "✅ Report saved to file",
-      module
+      module,
+      status: '✅ Markdown report saved',
+      report_url: `/reports/${module}.md`,
+      size_in_bytes: stats.size
     });
-
   } catch (err) {
     console.error(`❌ Failed to generate module page:`, err);
     res.status(500).json({ error: err.message });
