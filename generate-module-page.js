@@ -1,58 +1,34 @@
-// generate-module-page.js — now saves Markdown reports to /reports folder
+// generate-module-page.js
 
-const express = require('express');
-const router = express.Router();
+const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 const { OpenAI } = require('openai');
+const loadModulePrompt = require('./moduleprompt');
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const SUPABASE_PROJECT = process.env.SUPABASE_URL.replace('https://', '');
+const BUCKET = 'raw-inputs';
 
-const loadModulePrompt = require('./moduleprompt').loadModulePrompt;
-
-router.post('/generate-module-page', async (req, res) => {
-  console.log('📥 Incoming request to /generate-module-page');
-  console.log('🔍 Body:', JSON.stringify(req.body, null, 2));
-
+async function generateModulePage(thread_id, moduleName) {
   try {
-    const { module, rows = [] } = req.body;
+    console.log(`🟨 [START] Generating report for module: ${moduleName} (Thread: ${thread_id})`);
 
-    if (!module || !Array.isArray(rows) || rows.length === 0) {
-      console.error('❌ Invalid input. Module:', module, 'Rows:', rows);
-      return res.status(400).json({ error: 'Missing or invalid module or rows' });
+    const fileUrl = `https://${SUPABASE_PROJECT}/storage/v1/object/public/${BUCKET}/raw/${thread_id}/${moduleName}.json`;
+    const fileRes = await fetch(fileUrl);
+
+    if (!fileRes.ok) {
+      throw new Error(`🟥 Failed to fetch module data (${fileRes.status})`);
     }
 
-    console.log(`📥 Generating final module page for: ${module}`);
-    console.log(`📊 Row count: ${rows.length}`);
+    const rows = await fileRes.json();
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new Error(`🟥 No rows available in Supabase file for ${moduleName}`);
+    }
 
-    const moduleDir = path.join(__dirname, 'modules', module);
-    const osPath = path.join(__dirname, 'modules', 'universal_os.md');
+    console.log(`📥 Loaded ${rows.length} rows for ${moduleName}`);
 
-    const instructionPath = path.join(moduleDir, 'instructions.md');
-    const deliverablePath = path.join(moduleDir, 'deliverable.md');
-
-    const instructions = fs.existsSync(instructionPath) ? fs.readFileSync(instructionPath, 'utf8') : '';
-    const deliverable = fs.existsSync(deliverablePath) ? fs.readFileSync(deliverablePath, 'utf8') : '';
-    const os = fs.existsSync(osPath) ? fs.readFileSync(osPath, 'utf8') : '';
-
-    const prompt = `
-You are generating a final SEO audit report for the "${module}" module.
-
-Use the following context to guide your tone, format, and recommendations:
-
-## Universal OS Philosophy
-${os}
-
-## Module Instructions
-${instructions}
-
-## Deliverables Template (Structure)
-${deliverable}
-
-## Data to Analyze
-${JSON.stringify(rows.slice(0, 25), null, 2)}
-
-Format all lists (issues, action items, URLs) using bullets. Return valid Markdown, not JSON or code blocks.
-`;
+    const prompt = loadModulePrompt(moduleName, rows);
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4-0125-preview',
@@ -64,34 +40,25 @@ Format all lists (issues, action items, URLs) using bullets. Return valid Markdo
     });
 
     const content = response.choices?.[0]?.message?.content;
-    if (!content) {
-      console.error('❌ GPT returned no content');
-      return res.status(500).json({ error: 'No content returned from GPT' });
-    }
 
-    console.log('📦 Full GPT Output (raw content):');
-    console.log(content);
+    if (!content) {
+      throw new Error(`🟥 GPT returned no content for ${moduleName}`);
+    }
 
     const reportsDir = path.join(__dirname, 'reports');
     if (!fs.existsSync(reportsDir)) {
       fs.mkdirSync(reportsDir);
     }
 
-    const outPath = path.join(reportsDir, `${module}.md`);
-    fs.writeFileSync(outPath, content, 'utf8');
-    const stats = fs.statSync(outPath);
-    console.log(`📁 GPT output saved to: ${outPath} (${stats.size} bytes)`);
+    const filePath = path.join(reportsDir, `${thread_id}--${moduleName}.md`);
+    fs.writeFileSync(filePath, content, 'utf8');
+    console.log(`✅ Saved report to /reports/${thread_id}--${moduleName}.md`);
 
-    res.status(200).json({
-      module,
-      status: '✅ Markdown report saved',
-      report_url: `/reports/${module}.md`,
-      size_in_bytes: stats.size
-    });
+    return content;
   } catch (err) {
-    console.error(`❌ Failed to generate module page:`, err);
-    res.status(500).json({ error: err.message });
+    console.error(`🔥 Error in generateModulePage for ${moduleName}:`, err.message);
+    return null;
   }
-});
+}
 
-module.exports = router;
+module.exports = { generateModulePage };
