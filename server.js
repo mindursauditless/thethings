@@ -1,9 +1,9 @@
-// server.js — using modular classification + optional GPT audit triggering
+// server.js — using modular classification and sending modules individually to Zapier
 
 const express = require('express');
 const fetch = require('node-fetch');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
-const generateModulePage = require('./generate-module-page'); // ✅ added route
+const generateModulePage = require('./generate-module-page');
 
 const app = express();
 
@@ -49,23 +49,25 @@ app.post('/classify-csvs', async (req, res) => {
     const moduleData = await prepareFilesForGPT(uploadedCsvs);
     console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
 
-    if (process.env.ZAPIER_CATCH_HOOK_URL) {
-      const zapPayload = {
-        name: Name,
-        email: Email,
-        business: Business_Name,
-        website: Website_Link,
-        modules: moduleData
-      };
+    // ✅ Send each module individually to Zapier to avoid size limits
+    for (const [module, rows] of Object.entries(moduleData)) {
+      if (rows.length === 0) continue;
 
-      fetch(process.env.ZAPIER_CATCH_HOOK_URL, {
+      await fetch(process.env.ZAPIER_FINAL_HOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(zapPayload)
+        body: JSON.stringify({
+          module,
+          name: Name,
+          email: Email,
+          business: Business_Name,
+          website: Website_Link,
+          rows
+        })
       })
         .then(res => res.text())
-        .then(text => console.log('📤 Zapier responded:', text))
-        .catch(err => console.error('❌ Failed to send to Zapier:', err));
+        .then(text => console.log(`📤 Sent module: ${module} — Zapier responded:`, text))
+        .catch(err => console.error(`❌ Failed to send module: ${module}`, err));
     }
   } catch (err) {
     console.error("🔥 classify-csvs error:", err);
