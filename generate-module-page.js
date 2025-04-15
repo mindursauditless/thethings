@@ -51,13 +51,13 @@ ${deliverable}
 ## Data to Analyze
 ${JSON.stringify(rows.slice(0, 25), null, 2)}
 
-Format all lists (issues, action items, URLs) using bullets. Return valid JSON structured in the format provided in the Deliverables Template.
+Format all lists (issues, action items, URLs) using bullets. Return valid Markdown, not JSON or code blocks.
 `;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4-0125-preview',
       messages: [
-        { role: 'system', content: 'You are a JSON-only assistant. Do not return markdown or code blocks.' },
+        { role: 'system', content: 'You are a Markdown-only assistant. Return only valid Markdown, not JSON or code blocks.' },
         { role: 'user', content: prompt }
       ],
       temperature: 0.2
@@ -69,11 +69,19 @@ Format all lists (issues, action items, URLs) using bullets. Return valid JSON s
       return res.status(500).json({ error: 'No content returned from GPT' });
     }
 
-    const cleaned = content.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(cleaned);
+    console.log('📦 Full GPT Output (raw content):');
+    console.log(content);
 
-    console.log(`✅ Returning generated report for ${module}`);
-    res.status(200).json({ module, report: parsed });
+    const outPath = path.join(__dirname, `temp-output-${module}.md`);
+    fs.writeFileSync(outPath, content, 'utf8');
+    const stats = fs.statSync(outPath);
+    console.log(`📁 GPT output saved to: ${outPath} (${stats.size} bytes)`);
+
+    res.status(200).json({
+      module,
+      markdown_report_path: outPath,
+      size_in_bytes: stats.size
+    });
   } catch (err) {
     console.error(`❌ Failed to generate module page:`, err);
     res.status(500).json({ error: err.message });
