@@ -89,3 +89,6 @@ if (!thread_id) {
     }
   }
 })();
+
+module.exports = uploadMarkdownToSupabase;
+
