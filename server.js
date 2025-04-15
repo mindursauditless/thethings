@@ -1,10 +1,11 @@
-// server.js — now serving reports from /reports directory
+// server.js — now automatically generates markdown reports after classification
 
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const generateModulePage = require('./generate-module-page');
+const runModuleAudits = require('./runModuleAudits');
 
 const app = express();
 
@@ -57,6 +58,9 @@ app.post('/classify-csvs', async (req, res) => {
       if (rows.length === 0) continue;
       console.log(`📦 Module '${module}' ready with ${rows.length} rows.`);
     }
+
+    // ✅ Run module audits and save markdown reports
+    await runModuleAudits(moduleData);
   } catch (err) {
     console.error("🔥 classify-csvs error:", err);
   }
