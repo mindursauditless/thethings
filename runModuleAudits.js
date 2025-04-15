@@ -92,7 +92,6 @@ if (!thread_id) {
 
 module.exports = uploadMarkdownToSupabase;
 
-const fetch = require('node-fetch');
 
 async function sendReportToZapier({ thread_id, moduleName, content }) {
   try {
