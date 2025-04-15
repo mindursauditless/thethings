@@ -94,4 +94,12 @@ module.exports = uploadMarkdownToSupabase;
 
 
 const { sendReportToZapier } = require('./zapier-report-hook');
-await sendReportToZapier({ thread_id, moduleName, content });
+
+(async () => {
+  await sendReportToZapier({
+    thread_id: 'abc123',
+    moduleName: 'internal_links',
+    content: '# Test markdown\n- Sample item\n- More notes'
+  });
+})();
+
