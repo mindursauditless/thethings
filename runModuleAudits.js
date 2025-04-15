@@ -1,74 +1,52 @@
-// runModuleAudits.js
+// runModuleAudits.js — updated to support flat module: rows[] structure
 
 const fetch = require('node-fetch');
+const loadModulePrompt = require('./moduleprompt').loadModulePrompt;
+const fs = require('fs');
+const path = require('path');
 const { OpenAI } = require('openai');
-const { loadModulePrompt } = require('./moduleprompt');
-
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-/**
- * Run GPT audit for each module and return audit output
- * @param {Object} parsedModules - the JSON object from previous classification
- * @returns {Promise<Object>} - audit results per module
- */
-async function runModuleAudits(parsedModules) {
-  const results = {};
-
-  for (const [moduleName, moduleData] of Object.entries(parsedModules)) {
-    if (!moduleData.rows || moduleData.rows.length === 0) {
+async function runModuleAudits(modules) {
+  for (const [moduleName, rows] of Object.entries(modules)) {
+    if (!rows || rows.length === 0) {
       console.log(`⏩ Skipping ${moduleName} — no rows to analyze.`);
       continue;
     }
 
-    const prompt = loadModulePrompt(moduleName, moduleData.rows);
+    console.log(`🧠 Auditing module: ${moduleName} (${rows.length} rows)`);
 
     try {
-      const chatRes = await openai.chat.completions.create({
+      const prompt = loadModulePrompt(moduleName, rows);
+
+      const response = await openai.chat.completions.create({
         model: 'gpt-4-0125-preview',
         messages: [
-          { role: 'system', content: 'You are a JSON-only returning assistant. Respond only with valid JSON.' },
+          { role: 'system', content: 'You are a Markdown-only assistant. Return only valid Markdown, not JSON or code blocks.' },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.3
+        temperature: 0.2
       });
 
-      let content = chatRes.choices?.[0]?.message?.content;
+      const content = response.choices?.[0]?.message?.content;
 
-      if (!content || typeof content !== 'string' || content.length < 10) {
-        throw new Error(`GPT returned no usable content for module: ${moduleName}`);
+      if (!content) {
+        console.error(`❌ GPT returned no content for ${moduleName}`);
+        continue;
       }
 
-      if (content.startsWith('```json')) {
-        content = content.replace(/```json|```/g, '').trim();
+      const reportsDir = path.join(__dirname, 'reports');
+      if (!fs.existsSync(reportsDir)) {
+        fs.mkdirSync(reportsDir);
       }
 
-      const parsed = JSON.parse(content);
-      results[moduleName] = parsed;
-
-      console.log(`✅ Completed audit for ${moduleName}`);
-
-      // 🔁 Send to Zapier webhook with routing key
-      if (process.env.ZAPIER_FINAL_HOOK_URL) {
-        const zapPayload = {
-          module: moduleName, // ✅ routing key
-          summary: parsed.summary,
-          ...parsed.zapier_payload
-        };
-
-        await fetch(process.env.ZAPIER_FINAL_HOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(zapPayload)
-        });
-
-        console.log(`📤 Sent ${moduleName} to Zapier`);
-      }
+      const filePath = path.join(reportsDir, `${moduleName}.md`);
+      fs.writeFileSync(filePath, content, 'utf8');
+      console.log(`✅ Saved report: /reports/${moduleName}.md`);
     } catch (err) {
-      console.error(`❌ GPT audit failed for ${moduleName}:`, err);
+      console.error(`❌ Error generating module report for ${moduleName}:`, err);
     }
   }
-
-  return results;
 }
 
 module.exports = { runModuleAudits };
