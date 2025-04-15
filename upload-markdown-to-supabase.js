@@ -1,4 +1,4 @@
-// upload-markdown-to-supabase.js (patched to include thread_id in path)
+// upload-markdown-to-supabase.js (patched with upload path log)
 
 const fetch = require('node-fetch');
 const fs = require('fs');
@@ -22,6 +22,8 @@ async function uploadMarkdownToSupabase(thread_id, moduleName) {
     const endpoint = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${uploadPath}`;
 
     console.log(`📤 Uploading report: ${uploadPath}`);
+    console.log(`🔍 Uploading to Supabase endpoint: ${endpoint}`);
+
     const uploadRes = await fetch(endpoint, {
       method: 'POST',
       headers: {
