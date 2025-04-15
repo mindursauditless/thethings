@@ -6,11 +6,8 @@ const fs = require('fs');
 const path = require('path');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const generateModulePage = require('./generate-module-page');
-const { createClient } = require('@supabase/supabase-js');
+const supabase = require('./supabaseClient');
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const app = express();
 
