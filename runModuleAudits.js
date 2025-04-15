@@ -96,10 +96,19 @@ module.exports = uploadMarkdownToSupabase;
 const { sendReportToZapier } = require('./zapier-report-hook');
 
 (async () => {
-  await sendReportToZapier({
-    thread_id,
-    moduleName,
-    content
-  });
+  try {
+    if (!process.env.ZAPIER_FINAL_HOOK_URL) {
+      console.error('❌ ZAPIER_FINAL_HOOK_URL not defined — skipping webhook post');
+      return;
+    }
+
+    await sendReportToZapier({
+      thread_id,
+      moduleName,
+      content
+    });
+  } catch (err) {
+    console.error(`🔥 Error sending ${moduleName} to Zapier:`, err);
+  }
 })();
 
