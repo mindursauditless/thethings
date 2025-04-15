@@ -1,10 +1,11 @@
-// generate-module-page.js
+// generate-module-page.js (patched to auto-upload to Supabase)
 
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 const { OpenAI } = require('openai');
 const loadModulePrompt = require('./moduleprompt');
+const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const SUPABASE_PROJECT = process.env.SUPABASE_URL.replace('https://', '');
@@ -54,11 +55,27 @@ async function generateModulePage(thread_id, moduleName) {
     fs.writeFileSync(filePath, content, 'utf8');
     console.log(`✅ Saved report to /reports/${thread_id}--${moduleName}.md`);
 
-    return content;
+    const url = await uploadMarkdownToSupabase(thread_id, moduleName);
+    if (url) console.log(`🔗 Report URL: ${url}`);
+
+    return url;
   } catch (err) {
     console.error(`🔥 Error in generateModulePage for ${moduleName}:`, err.message);
     return null;
   }
 }
 
-module.exports = { generateModulePage };
+async function generateAllModules(thread_id, modules = []) {
+  const links = [];
+
+  for (const moduleName of modules) {
+    const url = await generateModulePage(thread_id, moduleName);
+    if (url) links.push({ module: moduleName, url });
+  }
+
+  console.log("✅ All reports generated:");
+  console.table(links);
+  return links;
+}
+
+module.exports = { generateModulePage, generateAllModules };
