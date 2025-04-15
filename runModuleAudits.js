@@ -1,7 +1,8 @@
-// runModuleAudits.js — with 500 row cap and empty row filtering
+// runModuleAudits.js — with 500 row cap, empty row filtering, and Supabase upload
 
 const fetch = require('node-fetch');
 const loadModulePrompt = require('./moduleprompt');
+const uploadMarkdownToSupabase = require('./upload-markdown-to-supabase');
 const fs = require('fs');
 const path = require('path');
 const { OpenAI } = require('openai');
@@ -81,6 +82,8 @@ if (!thread_id) {
       const filePath = path.join(reportsDir, `${thread_id}--${moduleName}.md`);
       fs.writeFileSync(filePath, content, 'utf8');
       console.log(`✅ Saved report: /reports/${thread_id}--${moduleName}.md`);
+
+      await uploadMarkdownToSupabase(thread_id, moduleName);
     } catch (err) {
       console.error(`❌ Error generating module report for ${moduleName}:`, err);
     }
