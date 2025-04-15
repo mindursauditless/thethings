@@ -1,4 +1,4 @@
-// generate-module-page.js (patched fetch path)
+// generate-module-page.js (with upload debug logs)
 
 const fetch = require('node-fetch');
 const fs = require('fs');
@@ -13,69 +13,54 @@ const RAW_BUCKET = 'raw-inputs';
 
 async function generateModulePage(thread_id, moduleName) {
   try {
-    console.log(`🟨 [START] Generating report for module: ${moduleName} (Thread: ${thread_id})`);
+    console.log(`🧠 Auditing module: ${moduleName}`);
 
     const fileUrl = `https://${SUPABASE_PROJECT}/storage/v1/object/public/${RAW_BUCKET}/raw/${thread_id}/${moduleName}.json`;
-    console.log(`🌐 Fetching: ${fileUrl}`);
     const fileRes = await fetch(fileUrl);
-
     if (!fileRes.ok) {
-      throw new Error(`🟥 Failed to fetch module data (${fileRes.status})`);
+      console.log(`⏩ Skipping ${moduleName} — could not fetch file (${fileRes.status})`);
+      return;
     }
 
     const rows = await fileRes.json();
-    if (!Array.isArray(rows) || rows.length === 0) {
-      throw new Error(`🟥 No rows available in Supabase file for ${moduleName}`);
-    }
+    console.log(`📦 ${rows.length} rows loaded for module '${moduleName}'`);
 
-    console.log(`📥 Loaded ${rows.length} rows for ${moduleName}`);
+    if (!rows.length) {
+      console.log(`⏩ Skipping ${moduleName} — no rows to analyze.`);
+      return;
+    }
 
     const prompt = loadModulePrompt(moduleName, rows);
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4-0125-preview',
-      messages: [
-        { role: 'system', content: 'You are a Markdown-only assistant. Return only valid Markdown, not JSON or code blocks.' },
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.2
-    });
-
-    const content = response.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error(`🟥 GPT returned no content for ${moduleName}`);
-    }
-
     const reportsDir = path.join(__dirname, 'reports');
-    if (!fs.existsSync(reportsDir)) {
-      fs.mkdirSync(reportsDir);
-    }
+    if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir);
 
     const filePath = path.join(reportsDir, `${thread_id}--${moduleName}.md`);
-    fs.writeFileSync(filePath, content, 'utf8');
-    console.log(`✅ Saved report to /reports/${thread_id}--${moduleName}.md`);
+    fs.writeFileSync(filePath, prompt, 'utf8');
+    console.log(`✅ Saved report: /reports/${thread_id}--${moduleName}.md`);
 
+    console.log(`📤 Attempting upload for ${thread_id}--${moduleName}.md`);
     const url = await uploadMarkdownToSupabase(thread_id, moduleName);
-    if (url) console.log(`🔗 Report URL: ${url}`);
+
+    if (url) {
+      console.log(`🔗 Supabase URL: ${url}`);
+    } else {
+      console.log(`❌ Upload failed or returned null`);
+    }
 
     return url;
   } catch (err) {
-    console.error(`🔥 Error in generateModulePage for ${moduleName}:`, err.message);
-    return null;
+    console.error(`🔥 Error generating module report for ${moduleName}:`, err);
   }
 }
 
 async function generateAllModules(thread_id, modules = []) {
   const links = [];
-
-  for (const moduleName of modules) {
-    const url = await generateModulePage(thread_id, moduleName);
-    if (url) links.push({ module: moduleName, url });
+  for (const module of modules) {
+    const url = await generateModulePage(thread_id, module);
+    if (url) links.push({ module, url });
   }
-
-  console.log("✅ All reports generated:");
-  console.table(links);
+  console.log(`⏱️ Total classification time: ${new Date().toLocaleTimeString()}`);
   return links;
 }
 
