@@ -1,49 +1,36 @@
-// upload-markdown-to-supabase.js (patched with upload path log)
+// upload-markdown-to-supabase.js — ensures upsert=true
 
-const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
+);
+
 const BUCKET = 'reports';
 
-async function uploadMarkdownToSupabase(thread_id, moduleName) {
+async function uploadMarkdownToSupabase(thread_id, module) {
   try {
-    const localPath = path.join(__dirname, 'reports', `${thread_id}--${moduleName}.md`);
-    if (!fs.existsSync(localPath)) {
-      throw new Error(`Report file not found at ${localPath}`);
-    }
+    const filePath = path.join(__dirname, 'reports', `${thread_id}--${module}.md`);
+    const fileBuffer = fs.readFileSync(filePath);
+    const remotePath = `reports/${thread_id}/${module}.md`;
 
-    const fileContent = fs.readFileSync(localPath, 'utf8');
-    const uploadPath = `${thread_id}/${moduleName}.md`;
-    const endpoint = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${uploadPath}`;
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .upload(remotePath, fileBuffer, {
+        contentType: 'text/markdown',
+        upsert: true // ✅ Allow overwriting old versions
+      });
 
-    console.log(`📤 Uploading report: ${uploadPath}`);
-    console.log(`🔍 Uploading to Supabase endpoint: ${endpoint}`);
+    if (error) throw error;
 
-    const uploadRes = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'text/markdown'
-      },
-      body: fileContent
-    });
-
-    const result = await uploadRes.text();
-    if (!uploadRes.ok) {
-      console.error(`❌ Failed to upload report:`, result);
-      return null;
-    }
-
-    console.log(`✅ Uploaded to Supabase: ${uploadPath}`);
-    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${uploadPath}`;
+    const publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${thread_id}/${module}.md`;
     return publicUrl;
   } catch (err) {
-    console.error(`🔥 Error uploading markdown for ${moduleName}:`, err.message);
+    console.error(`❌ Failed to upload ${module} report to Supabase:`, err);
     return null;
   }
 }
