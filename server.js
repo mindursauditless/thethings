@@ -69,8 +69,6 @@ app.post('/classify-csvs', async (req, res) => {
     console.log("📤 Sending messages to new GPT thread...");
 
     const thread = await openai.beta.threads.create({ messages: threadMessages });
-    console.log("🧵 Raw thread object from OpenAI:", thread);
-
     const thread_id = thread.id;
     console.log("✅ Thread created with ID:", thread_id);
 
@@ -80,12 +78,10 @@ app.post('/classify-csvs', async (req, res) => {
       assistant_id: CLASSIFY_ASSISTANT_ID
     });
 
-    const run = await openai.beta.threads.runs.create(
+    const run = await openai.beta.threads.runs.create({
       thread_id,
-      {
-        assistant_id: CLASSIFY_ASSISTANT_ID
-      }
-    );
+      assistant_id: CLASSIFY_ASSISTANT_ID
+    });
 
     console.log(`🧠 GPT run started: ${run.id} for thread ${thread_id}`);
 
