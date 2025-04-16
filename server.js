@@ -12,7 +12,7 @@ const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 // Log SDK version to confirm
-console.log("🤖 OpenAI SDK version:", require('openai/package.json').version);
+//console.log("🤖 OpenAI SDK version:", require('openai/package.json').version);
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
