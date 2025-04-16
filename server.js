@@ -86,7 +86,10 @@ app.post('/classify-csvs', async (req, res) => {
     const BUCKET = 'raw-inputs';
 
     console.time("⏱️ prepareFilesForGPT");
-    const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID);
+    (async () => {
+      const moduleData = await prepareFilesForGPT(...);
+      console.log(moduleData);
+    })();
     const { rows, matchedModules } = moduleData;
     console.timeEnd("⏱️ prepareFilesForGPT");
     console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
