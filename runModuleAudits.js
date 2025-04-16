@@ -100,23 +100,23 @@ module.exports = { runAudits };
 
 module.exports = uploadMarkdownToSupabase;
 
+//add back later - need to send report to zapier
+//const { sendReportToZapier } = require('./zapier-report-hook');
 
-const { sendReportToZapier } = require('./zapier-report-hook');
+//(async () => {
+ // try {
+   // if (!process.env.ZAPIER_FINAL_HOOK_URL) {
+     // console.error('❌ ZAPIER_FINAL_HOOK_URL not defined — skipping webhook post');
+      //return;
+   // }
 
-(async () => {
-  try {
-    if (!process.env.ZAPIER_FINAL_HOOK_URL) {
-      console.error('❌ ZAPIER_FINAL_HOOK_URL not defined — skipping webhook post');
-      return;
-    }
-
-    await sendReportToZapier({
-      thread_id,
-      moduleName,
-      content
-    });
-  } catch (err) {
-    console.error(`🔥 Error sending ${moduleName} to Zapier:`, err);
-  }
+   // await sendReportToZapier({
+     // thread_id,
+      //moduleName,
+     // content
+  //  });
+//  } catch (err) {
+//    console.error(`🔥 Error sending ${moduleName} to Zapier:`, err);
+//  }
 })();
 
