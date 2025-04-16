@@ -10,6 +10,11 @@ const { runModuleAudits } = require('./runModuleAudits');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
+const { prepareFilesForGPT } = require('./prepareFilesForGPT');
+
+const { rows, matchedModules } = await prepareFilesForGPT(filePath, CLASSIFY_ASSISTANT_ID);
+
+
 const app = express();
 app.use(express.json({ limit: '25mb' }));
 
