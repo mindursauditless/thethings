@@ -1,5 +1,5 @@
 const fs = require("fs");
-const parse = require("csv-parse/sync");
+const parse = require('csv-parse/lib/sync');
 const path = require("path");
 const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
 
