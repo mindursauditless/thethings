@@ -67,10 +67,13 @@ app.post('/classify-csvs', async (req, res) => {
     const thread_id = thread.id;
     console.log(`🧵 Thread created: ${thread_id}`);
 
-    const run = await openai.beta.threads.runs.create({
+    // LEGACY SDK-Compatible .runs.create call
+    const run = await openai.beta.threads.runs.create(
       thread_id,
-      assistant_id: CLASSIFY_ASSISTANT_ID
-    });
+      {
+        assistant_id: CLASSIFY_ASSISTANT_ID
+      }
+    );
 
     console.log(`🧠 GPT run started: ${run.id} for thread ${thread_id}`);
 
