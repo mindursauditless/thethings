@@ -7,7 +7,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 (async () => {
   try {
-    console.log("🤖 SDK version:", require("openai/package.json").version);
+    console.log("🤖 SDK version:", require("/package.json").version);
 
     // Step 1: Create a blank thread
     const thread = await openai.beta.threads.create();
