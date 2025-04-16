@@ -63,9 +63,12 @@ app.post('/classify-csvs', async (req, res) => {
     const thread = await openai.beta.threads.create({ messages });
     const thread_id = thread.id;
 
-    const run = await openai.beta.threads.runs.create(thread_id, {
-      assistant_id: CLASSIFY_ASSISTANT_ID,
-    });
+    const run = await openai.beta.threads.runs.create(
+      thread_id,
+      {
+        assistant_id: CLASSIFY_ASSISTANT_ID,
+      }
+    );
 
     const { rows, matchedModules } = moduleData;
     console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
