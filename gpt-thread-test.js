@@ -36,3 +36,11 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     }
   }
 })();
+
+console.log("🧪 thread_id value and type:", thread_id, typeof thread_id);
+
+const run = await openai.beta.threads.runs.create(
+  thread_id,
+  { assistant_id: process.env.CLASSIFY_ASSISTANT_ID }
+);
+
