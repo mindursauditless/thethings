@@ -65,13 +65,14 @@ app.post('/classify-csvs', async (req, res) => {
 
     const thread = await openai.beta.threads.create({ messages });
     const thread_id = thread.id;
+    console.log(`🧵 Thread created: ${thread_id}`);
 
     const run = await openai.beta.threads.runs.create({
       thread_id,
       assistant_id: CLASSIFY_ASSISTANT_ID
     });
 
-    console.log(`🧠 GPT run started for thread ${thread_id} — Run ID: ${run.id}`);
+    console.log(`🧠 GPT run started: ${run.id} for thread ${thread_id}`);
 
     const { rows, matchedModules } = moduleData;
     console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
@@ -108,6 +109,11 @@ app.post('/classify-csvs', async (req, res) => {
     console.timeEnd("⏱️ Total classification time");
   } catch (err) {
     console.error("🔥 classify-csvs error:", err);
+
+    if (err.response && typeof err.response.text === 'function') {
+      const responseBody = await err.response.text();
+      console.error("📨 OpenAI response body:", responseBody);
+    }
   }
 });
 
