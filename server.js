@@ -11,6 +11,9 @@ const { runModuleAudits } = require('./runModuleAudits');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
+// Log SDK version to confirm
+console.log("🤖 OpenAI SDK version:", require('openai/package.json').version);
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const app = express();
@@ -53,7 +56,7 @@ app.post('/classify-csvs', async (req, res) => {
 
     const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID);
 
-    const messages = [
+    const threadMessages = [
       {
         role: "user",
         content: JSON.stringify({
@@ -63,11 +66,20 @@ app.post('/classify-csvs', async (req, res) => {
       },
     ];
 
-    const thread = await openai.beta.threads.create({ messages });
-    const thread_id = thread.id;
-    console.log(`🧵 Thread created: ${thread_id}`);
+    console.log("📤 Sending messages to new GPT thread...");
 
-    // LEGACY SDK-Compatible .runs.create call
+    const thread = await openai.beta.threads.create({ messages: threadMessages });
+    console.log("🧵 Raw thread object from OpenAI:", thread);
+
+    const thread_id = thread.id;
+    console.log("✅ Thread created with ID:", thread_id);
+
+    // Diagnostic logging before run
+    console.log("🧪 Calling runs.create() with:", {
+      thread_id,
+      assistant_id: CLASSIFY_ASSISTANT_ID
+    });
+
     const run = await openai.beta.threads.runs.create(
       thread_id,
       {
@@ -116,6 +128,8 @@ app.post('/classify-csvs', async (req, res) => {
     if (err.response && typeof err.response.text === 'function') {
       const responseBody = await err.response.text();
       console.error("📨 OpenAI response body:", responseBody);
+    } else if (err instanceof Error) {
+      console.error("❗️ Error details:", err.message);
     }
   }
 });
