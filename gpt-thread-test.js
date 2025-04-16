@@ -27,6 +27,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         assistant_id: process.env.CLASSIFY_ASSISTANT_ID
       }
     );
+
     console.log("🚀 Run started:", run);
   } catch (err) {
     console.error("🔥 Test GPT thread/run error:", err);
