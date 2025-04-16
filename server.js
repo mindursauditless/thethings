@@ -111,7 +111,7 @@ app.post('/classify-csvs', async (req, res) => {
         },
         body: jsonString
       });
-      const result = await uploadRes.text();
+      const result =  uploadRes.text();
       console.timeEnd(`⏫ Upload ${storagePath}`);
 
       if (!uploadRes.ok) {
