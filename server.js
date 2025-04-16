@@ -1,4 +1,4 @@
-// server.js — Supabase upload + GPT module audit (now using raw fetch for GPT)
+// server.js — Supabase upload + GPT module audit with enhanced logging
 
 const express = require('express');
 const fetch = require('node-fetch');
@@ -14,6 +14,12 @@ const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
+
+// 🌐 Global request logger
+app.use((req, res, next) => {
+  console.log(`🛰️ Incoming ${req.method} ${req.url}`);
+  next();
+});
 
 app.get('/', (req, res) => {
   res.send('✅ Server is up and running with Supabase fetch uploader and GPT audit');
@@ -34,12 +40,14 @@ app.post('/classify-csvs', async (req, res) => {
     } = req.body;
 
     const thread_key = incomingThreadId || uuidv4();
+    const logPrefix = `🧩 [Thread ${thread_key}]`;
+
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_KEY;
     const BUCKET = 'raw-inputs';
 
-    console.log("📥 Zapier Data:", { Business_Name, Website_Link, Email, Name, thread_key });
-    console.time("⏱️ Total classification time");
+    console.log(`${logPrefix} Zapier Data:`, { Business_Name, Website_Link, Email, Name });
+    console.time(`${logPrefix} ⏱️ Total classification time`);
 
     const fileUrls = Files.split(',').map(url => url.trim()).filter(Boolean);
     const uploadedCsvs = fileUrls.map(url => {
@@ -52,8 +60,8 @@ app.post('/classify-csvs', async (req, res) => {
 
     const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID);
 
-    // === Replacing SDK GPT Thread/Run with raw fetch ===
-    console.log("📤 Creating GPT thread via raw fetch...");
+    // === GPT Thread/Run via raw fetch ===
+    console.log(`${logPrefix} 📤 Creating GPT thread via raw fetch...`);
     const threadRes = await fetch("https://api.openai.com/v1/threads", {
       method: "POST",
       headers: {
@@ -66,7 +74,7 @@ app.post('/classify-csvs', async (req, res) => {
 
     const threadData = await threadRes.json();
     const thread_id = threadData.id;
-    console.log("🧵 Thread created:", thread_id);
+    console.log(`${logPrefix} 🧵 Thread created:`, thread_id);
 
     const messageRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/messages`, {
       method: "POST",
@@ -85,7 +93,7 @@ app.post('/classify-csvs', async (req, res) => {
     });
 
     const messageData = await messageRes.json();
-    console.log("✉️ Message added:", messageData.id);
+    console.log(`${logPrefix} ✉️ Message added:`, messageData.id);
 
     const runRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/runs`, {
       method: "POST",
@@ -100,18 +108,27 @@ app.post('/classify-csvs', async (req, res) => {
     });
 
     const run = await runRes.json();
-    console.log("🚀 GPT run started:", run.id);
+    console.log(`${logPrefix} 🚀 GPT run started: ${run.id}`);
+    console.log(`${logPrefix} 💸 GPT assistant run triggered for Assistant ID: ${CLASSIFY_ASSISTANT_ID}`);
 
     const { rows, matchedModules } = moduleData;
-    console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
+    console.log(`${logPrefix} ✅ CSVs classified into modules:`, Object.keys(moduleData));
 
+    console.log(`${logPrefix} 📦 Attempting to upload modules to Supabase...`);
     for (const [module, rows] of Object.entries(moduleData)) {
       if (rows.length === 0) continue;
+      console.log(`${logPrefix} 📁 Preparing to upload module '${module}' with ${rows.length} rows`);
+
+      if (!SUPABASE_URL || !SUPABASE_KEY || !BUCKET) {
+        console.error(`${logPrefix} ❌ Missing Supabase config — aborting upload for ${module}`);
+        continue;
+      }
+
       const jsonString = JSON.stringify(rows, null, 2);
       const storagePath = `raw/${thread_id}/${module}.json`;
       const endpoint = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${storagePath}`;
 
-      console.time(`⏫ Upload ${storagePath}`);
+      console.time(`${logPrefix} ⏫ Upload ${storagePath}`);
       const uploadRes = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -122,19 +139,18 @@ app.post('/classify-csvs', async (req, res) => {
       });
 
       const result = await uploadRes.text();
-      console.timeEnd(`⏫ Upload ${storagePath}`);
+      console.timeEnd(`${logPrefix} ⏫ Upload ${storagePath}`);
 
       if (!uploadRes.ok) {
-        console.error(`❌ Failed to upload ${storagePath} to Supabase:`, result);
+        console.error(`${logPrefix} ❌ Failed to upload ${storagePath} to Supabase:`, result);
       } else {
-        console.log(`✅ Uploaded to Supabase: ${storagePath}`);
+        console.log(`${logPrefix} ✅ Uploaded to Supabase: ${storagePath}`);
       }
     }
 
-    const { runModuleAudits } = require('./runModuleAudits');
     await runModuleAudits(thread_id, Object.keys(moduleData));
 
-    console.timeEnd("⏱️ Total classification time");
+    console.timeEnd(`${logPrefix} ⏱️ Total classification time`);
   } catch (err) {
     console.error("🔥 classify-csvs error:", err);
 
