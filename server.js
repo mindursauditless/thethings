@@ -4,6 +4,7 @@ const express = require('express');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
+const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const { runModuleAudits } = require('./runModuleAudits');
 const { v4: uuidv4 } = require('uuid');
