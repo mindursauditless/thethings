@@ -1,35 +1,49 @@
-// prepareFilesForGPT.js
-
 const fetch = require('node-fetch');
 const { parse } = require('csv-parse/sync');
 
-const MODULE_KEYWORDS = {
-  schema: ["schema", "structured data", "markup", "json-ld"],
-  internal_links: ["internal link", "internal anchor", "link depth", "links", "orphan", "301"],
-  onsite: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta"],
-  content_redundancy: ["duplicate content", "low word count", "thin content", "similar", "unique"],
-  content_quality: ["duplicate content", "low word count", "thin content", "similar", "unique"],
-  indexing: ["mobile", "4xx", "5xx", "sitemap", "crawl", "index", "301", "broken", "blocked", "canonical", "noindex", "orphan", "robots", "redirect"],
-  information_architecture: ["internal link", "internal anchor", "link depth", "links", "orphan", "301", "mobile", "4xx", "5xx", "sitemap", "crawl", "index", "canonical", "noindex", "robots", "redirect"],
-  gbp: ["reviews", "category", "address"],
-  service_area_pages: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta", "internal link", "internal anchor", "link depth", "links", "orphan", "301", "crawl", "index", "broken", "blocked", "canonical", "noindex", "robots", "redirect"]
-};
+/**
+ * Converts a CSV string into a markdown block formatted for GPT classification
+ * @param {string} csvText - Raw CSV content
+ * @param {string} filename - Original filename for traceability
+ * @returns {string} GPT-formatted markdown block
+ */
+function formatCsvForGPT(csvText, filename) {
+  let records = parse(csvText, { columns: true, skip_empty_lines: true });
 
-const modulesToIncludeRanking = [
-  'content_quality',
-  'information_architecture',
-  'service_area_pages'
-];
+  // Remove empty rows
+  records = records.filter(row =>
+    Object.values(row).some(val => val && val.toString().trim() !== '')
+  );
+
+  // Limit to 800 rows
+  if (records.length > 800) {
+    console.warn(`✂️ Trimming ${records.length} rows down to 800 for: ${filename}`);
+    records = records.slice(0, 800);
+  }
+
+  const headers = Object.keys(records[0] || {});
+  const rowsMarkdown = records.map(row => {
+    const values = headers.map(h => row[h]?.toString().replace(/\n/g, ' ').trim());
+    return `- ${values.join(' | ')}`;
+  }).join('\n');
+
+  return [
+    `### File: ${filename}`,
+    `**Total Rows:** ${records.length}`,
+    `**Headers:** ${headers.join(', ')}`,
+    `**Rows:**`,
+    rowsMarkdown,
+    ''
+  ].join('\n');
+}
 
 /**
  * Prepares multiple uploaded CSV files for GPT classification
  * @param {Array} uploadedCsvs - [{ filename, url }]
- * @returns {Promise<Object>} - keyed by module name with arrays of relevant rows
+ * @returns {Promise<{ formattedMarkdown: string }>}
  */
 async function prepareFilesForGPT(uploadedCsvs = []) {
-  const moduleData = Object.fromEntries(
-    Object.keys(MODULE_KEYWORDS).map(key => [key, []])
-  );
+  const chunks = [];
 
   for (const { filename, url } of uploadedCsvs) {
     try {
@@ -37,37 +51,16 @@ async function prepareFilesForGPT(uploadedCsvs = []) {
       if (!res.ok) throw new Error(`Failed to download ${filename}`);
 
       const csvText = await res.text();
-      const records = parse(csvText, {
-        columns: true,
-        skip_empty_lines: true,
-        relax_column_count: true
-      });
-
-      const lowerFilename = filename.toLowerCase();
-      const isRankingFile = lowerFilename.includes('ranking') || lowerFilename.includes('positions');
-
-      for (const row of records) {
-        const rowText = Object.values(row).join(' ').toLowerCase();
-
-        for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
-          if (keywords.some(k => rowText.includes(k))) {
-            moduleData[module].push({ ...row, source_file: filename });
-          }
-        }
-
-        if (isRankingFile) {
-          for (const module of modulesToIncludeRanking) {
-            moduleData[module].push({ ...row, source_file: filename });
-          }
-        }
-      }
-
+      const markdown = formatCsvForGPT(csvText, filename);
+      chunks.push(markdown);
     } catch (err) {
-      console.error(`❌ Error processing ${filename}:`, err);
+      console.error(`Error processing ${filename}:`, err);
     }
   }
 
-  return moduleData;
+  return {
+    formattedMarkdown: chunks.join('\n\n')
+  };
 }
 
 module.exports = { prepareFilesForGPT };
