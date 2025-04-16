@@ -1,5 +1,5 @@
 const fs = require("fs");
-const parse = require("csv-parse/lib/sync");
+const parse = require("csv-parse/sync");
 const path = require("path");
 const { CLASSIFY_ASSISTANT_ID } = require("./env"); // assuming this is where the ID is stored
 
