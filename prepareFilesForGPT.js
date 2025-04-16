@@ -80,7 +80,7 @@ async function prepareFilesForGPT(uploadedCsvs, assistantId) {
 
     allRows = allRows.concat(records);
     const headers = Object.keys(records[0] || {});
-    const fileModules = matchModuleHeaders(headers);
+    const fileModules = MODULE_KEYWORDS(headers);
 
     fileModules.forEach(mod => matchedModules.add(mod));
 
