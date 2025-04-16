@@ -1,19 +1,20 @@
-// prepareFilesForGPT.js — Fully patched to fix MODULE_KEYWORDS issue and match headers
+// prepareFilesForGPT.js — patched to skip invalid rows and log them
 
 const { parse } = require('csv-parse/sync');
 const https = require('https');
 
 const MODULE_KEYWORDS = {
-  schema: ['schema', 'json-ld'],
-  internal_links: ['internal'],
-  content_quality: ['content', 'word count'],
-  information_architecture: ['architecture', 'structure'],
-  service_area_pages: ['SAP', 'location'],
-  topical_authority: ['topical', 'cluster'],
-  onpage_optimization: ['meta', 'title', 'description'],
-  conversion_barriers: ['conversion', 'CTA'],
-  local_visibility: ['GBP', 'local']
+  schema: ["schema", "structured data", "markup", "json-ld"],
+  internal_links: ["internal link", "internal anchor", "link depth", "links", "orphan", "301"],
+  onsite: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta"],
+  content_redundancy: ["duplicate content", "low word count", "thin content", "similar", "unique"],
+  content_quality: ["duplicate content", "low word count", "thin content", "similar", "unique"],
+  indexing: ["mobile", "4xx", "5xx", "sitemap", "crawl", "index", "301", "broken", "blocked", "canonical", "noindex", "orphan", "robots", "redirect"],
+  information_architecture: ["internal link", "internal anchor", "link depth", "links", "orphan", "301", "mobile", "4xx", "5xx", "sitemap", "crawl", "index", "canonical", "noindex", "robots", "redirect"],
+  gbp: ["reviews", "category", "address"],
+  service_area_pages: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta", "internal link", "internal anchor", "link depth", "links", "orphan", "301", "crawl", "index", "broken", "blocked", "canonical", "noindex", "robots", "redirect"]
 };
+
 
 function downloadCsv(url) {
   return new Promise((resolve, reject) => {
@@ -25,16 +26,14 @@ function downloadCsv(url) {
   });
 }
 
-function matchModuleHeaders(headers) {
+function matchModulesFromHeaders(headers) {
   const matchedModules = new Set();
 
   for (const header of headers) {
-    const headerLower = header.toLowerCase();
+    const col = header.toLowerCase();
     for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
-      for (const keyword of keywords) {
-        if (headerLower.includes(keyword.toLowerCase())) {
-          matchedModules.add(module);
-        }
+      if (keywords.some((kw) => col.includes(kw.toLowerCase()))) {
+        matchedModules.add(module);
       }
     }
   }
@@ -52,16 +51,30 @@ async function prepareFilesForGPT(uploadedCsvs, assistantId) {
     console.log(`📥 Downloading file from: ${filePath}`);
 
     const fileContent = await downloadCsv(filePath);
-    const records = parse(fileContent, {
-      columns: true,
-      skip_empty_lines: true
-    });
 
-    console.log(`📊 Parsed ${records.length} rows from ${file.filename || filePath}`);
+    let records = [];
+    try {
+      records = parse(fileContent, {
+        columns: true,
+        skip_empty_lines: true,
+        on_record: (record, { lines }) => {
+          if (!record || typeof record !== 'object') {
+            console.warn(`⚠️ Skipping invalid row at line ${lines}`);
+            return undefined;
+          }
+          return record;
+        }
+      });
+    } catch (err) {
+      console.error(`❌ Failed to parse ${file.filename || filePath}:`, err.message);
+      continue;
+    }
+
+    console.log(`📊 Parsed ${records.length} valid rows from ${file.filename || filePath}`);
 
     allRows = allRows.concat(records);
     const headers = Object.keys(records[0] || {});
-    const fileModules = matchModuleHeaders(headers);
+    const fileModules = matchModulesFromHeaders(headers);
 
     fileModules.forEach(mod => matchedModules.add(mod));
 
@@ -71,7 +84,6 @@ async function prepareFilesForGPT(uploadedCsvs, assistantId) {
     }
   }
 
-  // Always include key modules if matching data exists
   const rankingRelated = ['information_architecture', 'content_quality', 'service_area_pages'];
   for (const module of rankingRelated) {
     if (!moduleData[module]) moduleData[module] = [];
