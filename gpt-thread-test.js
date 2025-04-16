@@ -1,45 +1,58 @@
-// gpt-thread-test.js
-
-const { OpenAI } = require('openai');
+const fetch = require('node-fetch');
 require('dotenv').config();
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 (async () => {
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  const ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
+
   try {
-    console.log("🧪 Starting GPT thread/run test...");
+    console.log("🤖 Raw test — creating thread");
 
-    const thread = await openai.beta.threads.create();
-    const thread_id = thread.id;
-
-    console.log("🧵 thread_id value and type:", thread_id, typeof thread_id);
-
-    const message = await openai.beta.threads.messages.create({
-      thread_id,
-      role: "user",
-      content: "Hello GPT, just testing a thread run."
+    // Step 1: Create thread
+    const threadRes = await fetch("https://api.openai.com/v1/threads", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
     });
-    console.log("✉️ Message added:", message);
 
-    const run = await openai.beta.threads.runs.create(
-      thread_id,
-      {
-        assistant_id: process.env.CLASSIFY_ASSISTANT_ID
-      }
-    );
+    const thread = await threadRes.json();
+    const thread_id = thread.id;
+    console.log("🧵 Thread ID:", thread_id);
 
-    console.log("🚀 Run started:", run);
+    // Step 2: Add message
+    const msgRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        role: "user",
+        content: "Hello GPT, just testing a raw thread run."
+      })
+    });
+
+    const message = await msgRes.json();
+    console.log("✉️ Message:", message);
+
+    // Step 3: Create run
+    const runRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/runs`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        assistant_id: ASSISTANT_ID
+      })
+    });
+
+    const run = await runRes.json();
+    console.log("🚀 Run created:", run);
   } catch (err) {
-    console.error("🔥 Test GPT thread/run error:", err);
-
-    if (err.response && typeof err.response.text === 'function') {
-      const body = await err.response.text();
-      console.error("📨 OpenAI error response:", body);
-    } else if (err instanceof Error) {
-      console.error("❗ Error message:", err.message);
-    }
+    console.error("🔥 Raw API test failed:", err);
   }
 })();
-
-console.log("🧪 Assistant ID:", process.env.CLASSIFY_ASSISTANT_ID);
-
