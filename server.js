@@ -1,20 +1,16 @@
-// server.js — Supabase upload + GPT module audit
+// server.js — Supabase upload + GPT module audit (now using raw fetch for GPT)
 
 const express = require('express');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
-const { OpenAI } = require('openai');
-const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const { runModuleAudits } = require('./runModuleAudits');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
-// Log SDK version to confirm
-//console.log("🤖 OpenAI SDK version:", require('openai/package.json').version);
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
@@ -56,34 +52,55 @@ app.post('/classify-csvs', async (req, res) => {
 
     const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID);
 
-    const threadMessages = [
-      {
+    // === Replacing SDK GPT Thread/Run with raw fetch ===
+    console.log("📤 Creating GPT thread via raw fetch...");
+    const threadRes = await fetch("https://api.openai.com/v1/threads", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
+      },
+      body: JSON.stringify({})
+    });
+
+    const threadData = await threadRes.json();
+    const thread_id = threadData.id;
+    console.log("🧵 Thread created:", thread_id);
+
+    const messageRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
+      },
+      body: JSON.stringify({
         role: "user",
         content: JSON.stringify({
           rows: moduleData.rows,
           matchedModules: moduleData.matchedModules,
-        }),
+        })
+      })
+    });
+
+    const messageData = await messageRes.json();
+    console.log("✉️ Message added:", messageData.id);
+
+    const runRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/runs`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
       },
-    ];
-
-    console.log("📤 Sending messages to new GPT thread...");
-
-    const thread = await openai.beta.threads.create({ messages: threadMessages });
-    const thread_id = thread.id;
-    console.log("✅ Thread created with ID:", thread_id);
-
-    // Diagnostic logging before run
-    console.log("🧪 Calling runs.create() with:", {
-      thread_id,
-      assistant_id: CLASSIFY_ASSISTANT_ID
+      body: JSON.stringify({
+        assistant_id: CLASSIFY_ASSISTANT_ID
+      })
     });
 
-    const run = await openai.beta.threads.runs.create({
-      thread_id,
-      assistant_id: CLASSIFY_ASSISTANT_ID
-    });
-
-    console.log(`🧠 GPT run started: ${run.id} for thread ${thread_id}`);
+    const run = await runRes.json();
+    console.log("🚀 GPT run started:", run.id);
 
     const { rows, matchedModules } = moduleData;
     console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
