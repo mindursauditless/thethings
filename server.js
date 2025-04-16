@@ -10,10 +10,6 @@ const { runModuleAudits } = require('./runModuleAudits');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
-const { prepareFilesForGPT } = require('./prepareFilesForGPT');
-
-const { rows, matchedModules } = await prepareFilesForGPT(filePath, CLASSIFY_ASSISTANT_ID);
-
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
@@ -53,7 +49,8 @@ app.post('/classify-csvs', async (req, res) => {
     const BUCKET = 'raw-inputs';
 
     console.time("⏱️ prepareFilesForGPT");
-    const moduleData = await prepareFilesForGPT(uploadedCsvs);
+    const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID);
+    const { rows, matchedModules } = moduleData;
     console.timeEnd("⏱️ prepareFilesForGPT");
     console.log("✅ CSVs classified into modules:", Object.keys(moduleData));
 
