@@ -23,11 +23,19 @@ const moduleNames = [
   'service_area_pages'
 ];
 
-const thread_id = process.argv[2];
-if (!thread_id) {
-  console.error('❌ Please provide a thread_id as the first argument');
-  process.exit(1);
+async function runAudits(thread_id) {
+  if (!thread_id) {
+    console.error('❌ runAudits called without thread_id');
+    return;
+  }
+
+  for (const moduleName of moduleNames) {
+    // ... keep rest of logic the same ...
+  }
 }
+
+module.exports = { runAudits };
+
 
 (async () => {
   for (const moduleName of moduleNames) {
