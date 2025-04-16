@@ -1,9 +1,19 @@
-const fs = require("fs");
-const parse = require('csv-parse/lib/sync');
-const path = require("path");
-const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
+// prepareFilesForGPT.js — Fully patched to fix MODULE_KEYWORDS issue and match headers
 
+const { parse } = require('csv-parse/lib/sync');
 const https = require('https');
+
+const MODULE_KEYWORDS = {
+  schema: ['schema', 'json-ld'],
+  internal_links: ['internal'],
+  content_quality: ['content', 'word count'],
+  information_architecture: ['architecture', 'structure'],
+  service_area_pages: ['SAP', 'location'],
+  topical_authority: ['topical', 'cluster'],
+  onpage_optimization: ['meta', 'title', 'description'],
+  conversion_barriers: ['conversion', 'CTA'],
+  local_visibility: ['GBP', 'local']
+};
 
 function downloadCsv(url) {
   return new Promise((resolve, reject) => {
@@ -15,51 +25,20 @@ function downloadCsv(url) {
   });
 }
 
-
-const MODULE_KEYWORDS = {
-  schema: ["schema", "structured data", "markup", "json-ld"],
-  internal_links: ["internal link", "internal anchor", "link depth", "links", "orphan", "301"],
-  onsite: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta"],
-  content_redundancy: ["duplicate content", "low word count", "thin content", "similar", "unique"],
-  content_quality: ["duplicate content", "low word count", "thin content", "similar", "unique"],
-  indexing: ["mobile", "4xx", "5xx", "sitemap", "crawl", "index", "301", "broken", "blocked", "canonical", "noindex", "orphan", "robots", "redirect"],
-  information_architecture: ["internal link", "internal anchor", "link depth", "links", "orphan", "301", "mobile", "4xx", "5xx", "sitemap", "crawl", "index", "canonical", "noindex", "robots", "redirect"],
-  gbp: ["reviews", "category", "address"],
-  service_area_pages: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta", "internal link", "internal anchor", "link depth", "links", "orphan", "301", "crawl", "index", "broken", "blocked", "canonical", "noindex", "robots", "redirect"]
-};
-
-const modulesToIncludeRanking = [
-  "content_quality",
-  "information_architecture",
-  "service_area_pages"
-];
-
-async function prepareFilesForGPT(filePath, assistantId) {
-  const fileContent = fs.readFileSync(filePath, "utf8");
-
-  let parsedRows = parse(fileContent, {
-    columns: true,
-    skip_empty_lines: true,
-  });
-
-  console.log(`📥 Total parsed rows: ${parsedRows.length}`);
-
-  // ✅ Limit to first 1000 rows only for CLASSIFY_ASSISTANT_ID
-  if (assistantId === CLASSIFY_ASSISTANT_ID) {
-    parsedRows = parsedRows.slice(0, 1000);
-    console.log(`🔒 Trimmed to first 1000 rows for assistant: ${assistantId}`);
-  }
-
+function matchModuleHeaders(headers) {
   const matchedModules = new Set();
+
   for (const header of headers) {
-    for (const [module, patterns] of Object.entries(moduleMap)) {
-      for (const regex of patterns) {
-        if (regex.test(header)) {
+    const headerLower = header.toLowerCase();
+    for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
+      for (const keyword of keywords) {
+        if (headerLower.includes(keyword.toLowerCase())) {
           matchedModules.add(module);
         }
       }
     }
   }
+
   return [...matchedModules];
 }
 
@@ -78,9 +57,11 @@ async function prepareFilesForGPT(uploadedCsvs, assistantId) {
       skip_empty_lines: true
     });
 
+    console.log(`📊 Parsed ${records.length} rows from ${file.filename || filePath}`);
+
     allRows = allRows.concat(records);
     const headers = Object.keys(records[0] || {});
-    const fileModules = MODULE_KEYWORDS(headers);
+    const fileModules = matchModuleHeaders(headers);
 
     fileModules.forEach(mod => matchedModules.add(mod));
 
