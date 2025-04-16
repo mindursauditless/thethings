@@ -29,12 +29,14 @@ app.post('/classify-csvs', async (req, res) => {
       Email,
       Name,
       Files = '',
-      thread_id = uuidv4()
+      thread_id: incomingThreadId
     } = req.body;
 
-    console.log("📥 Zapier Data:", { Business_Name, Website_Link, Email, Name });
+    const thread_key = incomingThreadId || uuidv4(); // Your consistent thread identifier
+    console.log("📥 Zapier Data:", { Business_Name, Website_Link, Email, Name, thread_key });
     console.time("⏱️ Total classification time");
 
+    // Parse file URLs
     const fileUrls = Files.split(',').map(url => url.trim()).filter(Boolean);
     const uploadedCsvs = fileUrls.map(url => {
       const parts = url.split('/');
@@ -43,6 +45,38 @@ app.post('/classify-csvs', async (req, res) => {
         url
       };
     });
+
+    // Prepare data for GPT
+    const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID);
+
+    const messages = [
+      {
+        role: "user",
+        content: JSON.stringify({
+          rows: moduleData.rows,
+          matchedModules: moduleData.matchedModules,
+        }),
+      },
+    ];
+
+    // Create real OpenAI thread
+    const thread = await openai.beta.threads.create({ messages });
+
+    // Run classification assistant on real thread
+    const run = await openai.beta.threads.runs.create(thread.id, {
+      assistant_id: CLASSIFY_ASSISTANT_ID,
+    });
+
+    console.log("✅ Classification started. Run ID:", run.id);
+    console.timeEnd("⏱️ Total classification time");
+
+    // You could store this mapping if needed:
+    // { thread_key: your key, thread_id: thread.id }
+
+  } catch (error) {
+    console.error("❌ classify-csvs error:", error);
+  }
+});
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_KEY;
