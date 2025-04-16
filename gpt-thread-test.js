@@ -7,14 +7,12 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 (async () => {
   try {
-    console.log("🤖 SDK version:", require("/package.json").version);
+    console.log("🧪 Starting GPT thread/run test...");
 
-    // Step 1: Create a blank thread
     const thread = await openai.beta.threads.create();
     console.log("🧵 Thread created:", thread);
     const thread_id = thread.id;
 
-    // Step 2: Add a dummy message to thread
     const message = await openai.beta.threads.messages.create({
       thread_id,
       role: "user",
@@ -22,7 +20,6 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     });
     console.log("✉️ Message added:", message);
 
-    // Step 3: Start the run
     const run = await openai.beta.threads.runs.create(
       thread_id,
       {
