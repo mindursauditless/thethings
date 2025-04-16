@@ -1,5 +1,3 @@
-"OpenAI-Beta": "assistants=v2"
-
 const fetch = require('node-fetch');
 require('dotenv').config();
 
@@ -15,7 +13,8 @@ require('dotenv').config();
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
       },
       body: JSON.stringify({})
     });
@@ -29,7 +28,8 @@ require('dotenv').config();
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
       },
       body: JSON.stringify({
         role: "user",
@@ -45,7 +45,8 @@ require('dotenv').config();
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
       },
       body: JSON.stringify({
         assistant_id: ASSISTANT_ID
