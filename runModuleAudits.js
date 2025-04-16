@@ -118,5 +118,6 @@ module.exports = uploadMarkdownToSupabase;
 //  } catch (err) {
 //    console.error(`🔥 Error sending ${moduleName} to Zapier:`, err);
 //  }
-})();
+//})
+();
 
