@@ -20,63 +20,66 @@ app.get('/', (req, res) => {
 
 app.post('/classify-csvs', async (req, res) => {
   console.log("⚡️ classify-csvs triggered");
+
+  // Respond immediately to Zapier so it doesn't timeout
   res.status(200).json({ message: 'Received. Processing in background...' });
 
-  try {
-    const {
-      Business_Name,
-      Website_Link,
-      Email,
-      Name,
-      Files = '',
-      thread_id: incomingThreadId
-    } = req.body;
+  // Run background logic
+  (async () => {
+    try {
+      const {
+        Business_Name,
+        Website_Link,
+        Email,
+        Name,
+        Files = '',
+        thread_id: incomingThreadId
+      } = req.body;
 
-    const thread_key = incomingThreadId || uuidv4(); // Your consistent thread identifier
-    console.log("📥 Zapier Data:", { Business_Name, Website_Link, Email, Name, thread_key });
-    console.time("⏱️ Total classification time");
+      const thread_key = incomingThreadId || uuidv4(); // Your own tracking ID
+      console.log("📥 Zapier Data:", { Business_Name, Website_Link, Email, Name, thread_key });
+      console.time("⏱️ Total classification time");
 
-    // Parse file URLs
-    const fileUrls = Files.split(',').map(url => url.trim()).filter(Boolean);
-    const uploadedCsvs = fileUrls.map(url => {
-      const parts = url.split('/');
-      return {
-        filename: decodeURIComponent(parts[parts.length - 1]),
-        url
-      };
-    });
+      // Process file URLs
+      const fileUrls = Files.split(',').map(url => url.trim()).filter(Boolean);
+      const uploadedCsvs = fileUrls.map(url => {
+        const parts = url.split('/');
+        return {
+          filename: decodeURIComponent(parts[parts.length - 1]),
+          url
+        };
+      });
 
-    // Prepare data for GPT
-    const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID);
+      // Classify data (limit to 1000 rows inside prepareFilesForGPT)
+      const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID);
 
-    const messages = [
-      {
-        role: "user",
-        content: JSON.stringify({
-          rows: moduleData.rows,
-          matchedModules: moduleData.matchedModules,
-        }),
-      },
-    ];
+      const messages = [
+        {
+          role: "user",
+          content: JSON.stringify({
+            rows: moduleData.rows,
+            matchedModules: moduleData.matchedModules,
+          }),
+        },
+      ];
 
-    // Create real OpenAI thread
-    const thread = await openai.beta.threads.create({ messages });
+      // Create thread + run assistant
+      const thread = await openai.beta.threads.create({ messages });
 
-    // Run classification assistant on real thread
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: CLASSIFY_ASSISTANT_ID,
-    });
+      const run = await openai.beta.threads.runs.create(thread.id, {
+        assistant_id: CLASSIFY_ASSISTANT_ID,
+      });
 
-    console.log("✅ Classification started. Run ID:", run.id);
-    console.timeEnd("⏱️ Total classification time");
+      console.log("✅ Classification started. Run ID:", run.id);
+      console.timeEnd("⏱️ Total classification time");
 
-    // You could store this mapping if needed:
-    // { thread_key: your key, thread_id: thread.id }
-
-  } catch (error) {
-    console.error("❌ classify-csvs error:", error);
-  }
+      // Optional: persist { thread_key, thread.id } to Supabase
+    } catch (error) {
+      console.error("❌ classify-csvs error:", error);
+    }
+  })(); // self-invoking async wrapper
 });
+
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_KEY;
