@@ -21,7 +21,6 @@ app.get('/', (req, res) => {
 
 app.post('/classify-csvs', async (req, res) => {
   console.log("⚡️ classify-csvs triggered");
-  console.log("🧾 Raw request body:", JSON.stringify(req.body, null, 2));
   res.status(200).json({ message: 'Received. Processing in background...' });
 
   try {
@@ -55,15 +54,6 @@ app.post('/classify-csvs', async (req, res) => {
 
     // === Replacing SDK GPT Thread/Run with raw fetch ===
     console.log("📤 Creating GPT thread via raw fetch...");
-    console.log("🧾 Raw request body:", JSON.stringify(req.body, null, 2));
-    
-    if (!moduleData || !moduleData.rows || moduleData.rows.length === 0) {
-      console.error("❌ No usable rows found in moduleData. Skipping GPT call.");
-      return;
-    }
-    
-    console.log("📤 Creating GPT thread via raw fetch...");
-    
     const threadRes = await fetch("https://api.openai.com/v1/threads", {
       method: "POST",
       headers: {
@@ -73,12 +63,10 @@ app.post('/classify-csvs', async (req, res) => {
       },
       body: JSON.stringify({})
     });
-    
+
     const threadData = await threadRes.json();
     const thread_id = threadData.id;
-    
     console.log("🧵 Thread created:", thread_id);
-
 
     const messageRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/messages`, {
       method: "POST",
@@ -131,7 +119,6 @@ app.post('/classify-csvs', async (req, res) => {
           'Content-Type': 'application/json'
         },
         body: jsonString
-        await runModuleAudits(thread_id, Object.keys(moduleData));
       });
 
       const result = await uploadRes.text();
@@ -144,8 +131,8 @@ app.post('/classify-csvs', async (req, res) => {
       }
     }
 
-    const allModules = Object.keys(moduleData);
-    await runModuleAudits(thread_id, allModules);
+    const { runModuleAudits } = require('./runModuleAudits');
+    await runModuleAudits(thread_id, Object.keys(moduleData));
 
     console.timeEnd("⏱️ Total classification time");
   } catch (err) {
