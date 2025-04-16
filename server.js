@@ -4,11 +4,14 @@ const express = require('express');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
+const { OpenAI } = require('openai');
 const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const { runModuleAudits } = require('./runModuleAudits');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
@@ -31,7 +34,7 @@ app.post('/classify-csvs', async (req, res) => {
       thread_id: incomingThreadId
     } = req.body;
 
-    const thread_key = incomingThreadId || uuidv4(); // your consistent key
+    const thread_key = incomingThreadId || uuidv4();
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_KEY;
     const BUCKET = 'raw-inputs';
@@ -66,7 +69,7 @@ app.post('/classify-csvs', async (req, res) => {
     const run = await openai.beta.threads.runs.create(
       thread_id,
       {
-        assistant_id: CLASSIFY_ASSISTANT_ID,
+        assistant_id: CLASSIFY_ASSISTANT_ID
       }
     );
 
