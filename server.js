@@ -131,6 +131,8 @@ app.post('/classify-csvs', async (req, res) => {
           'Content-Type': 'application/json'
         },
         body: jsonString
+        const { runModuleAudits } = require('./runModuleAudits');
+        await runModuleAudits(thread_id, Object.keys(moduleData));
       });
 
       const result = await uploadRes.text();
