@@ -1,65 +1,59 @@
-const fetch = require('node-fetch');
-const { parse } = require('csv-parse/sync');
+const fs = require("fs");
+const parse = require("csv-parse/lib/sync");
+const path = require("path");
+const { CLASSIFY_ASSISTANT_ID } = require("./env"); // assuming this is where the ID is stored
 
-/**
- * Converts a CSV string into a markdown block formatted for GPT classification
- * @param {string} csvText - Raw CSV content
- * @param {string} filename - Original filename for traceability
- * @returns {string} GPT-formatted markdown block
- */
-function formatCsvForGPT(csvText, filename) {
-  let records = parse(csvText, { columns: true, skip_empty_lines: true });
+const MODULE_KEYWORDS = {
+  schema: ["schema", "structured data", "markup", "json-ld"],
+  internal_links: ["internal link", "internal anchor", "link depth", "links", "orphan", "301"],
+  onsite: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta"],
+  content_redundancy: ["duplicate content", "low word count", "thin content", "similar", "unique"],
+  content_quality: ["duplicate content", "low word count", "thin content", "similar", "unique"],
+  indexing: ["mobile", "4xx", "5xx", "sitemap", "crawl", "index", "301", "broken", "blocked", "canonical", "noindex", "orphan", "robots", "redirect"],
+  information_architecture: ["internal link", "internal anchor", "link depth", "links", "orphan", "301", "mobile", "4xx", "5xx", "sitemap", "crawl", "index", "canonical", "noindex", "robots", "redirect"],
+  gbp: ["reviews", "category", "address"],
+  service_area_pages: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta", "internal link", "internal anchor", "link depth", "links", "orphan", "301", "crawl", "index", "broken", "blocked", "canonical", "noindex", "robots", "redirect"]
+};
 
-  // Remove empty rows
-  records = records.filter(row =>
-    Object.values(row).some(val => val && val.toString().trim() !== '')
-  );
+const modulesToIncludeRanking = [
+  "content_quality",
+  "information_architecture",
+  "service_area_pages"
+];
 
-  // Limit to 800 rows
-  if (records.length > 800) {
-    console.warn(`✂️ Trimming ${records.length} rows down to 800 for: ${filename}`);
-    records = records.slice(0, 800);
+async function prepareFilesForGPT(filePath, assistantId) {
+  const fileContent = fs.readFileSync(filePath, "utf8");
+
+  let parsedRows = parse(fileContent, {
+    columns: true,
+    skip_empty_lines: true,
+  });
+
+  console.log(`📥 Total parsed rows: ${parsedRows.length}`);
+
+  // ✅ Limit to first 1000 rows only for CLASSIFY_ASSISTANT_ID
+  if (assistantId === CLASSIFY_ASSISTANT_ID) {
+    parsedRows = parsedRows.slice(0, 1000);
+    console.log(`🔒 Trimmed to first 1000 rows for assistant: ${assistantId}`);
   }
 
-  const headers = Object.keys(records[0] || {});
-  const rowsMarkdown = records.map(row => {
-    const values = headers.map(h => row[h]?.toString().replace(/\n/g, ' ').trim());
-    return `- ${values.join(' | ')}`;
-  }).join('\n');
+  const matchedModules = new Set();
 
-  return [
-    `### File: ${filename}`,
-    `**Total Rows:** ${records.length}`,
-    `**Headers:** ${headers.join(', ')}`,
-    `**Rows:**`,
-    rowsMarkdown,
-    ''
-  ].join('\n');
-}
+  parsedRows.forEach((row) => {
+    Object.keys(row).forEach((colName) => {
+      for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
+        if (keywords.some((keyword) => colName.toLowerCase().includes(keyword))) {
+          matchedModules.add(module);
+        }
+      }
+    });
+  });
 
-/**
- * Prepares multiple uploaded CSV files for GPT classification
- * @param {Array} uploadedCsvs - [{ filename, url }]
- * @returns {Promise<{ formattedMarkdown: string }>}
- */
-async function prepareFilesForGPT(uploadedCsvs = []) {
-  const chunks = [];
-
-  for (const { filename, url } of uploadedCsvs) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Failed to download ${filename}`);
-
-      const csvText = await res.text();
-      const markdown = formatCsvForGPT(csvText, filename);
-      chunks.push(markdown);
-    } catch (err) {
-      console.error(`Error processing ${filename}:`, err);
-    }
-  }
+  modulesToIncludeRanking.forEach((mod) => matchedModules.add(mod));
 
   return {
-    formattedMarkdown: chunks.join('\n\n')
+    rows: parsedRows,
+    matchedModules: Array.from(matchedModules),
   };
 }
 
