@@ -1,6 +1,6 @@
 // prepareFilesForGPT.js — Fully patched to fix MODULE_KEYWORDS issue and match headers
 
-const { parse } = require('csv-parse/lib/sync');
+const { parse } = require('csv-parse/sync');
 const https = require('https');
 
 const MODULE_KEYWORDS = {
