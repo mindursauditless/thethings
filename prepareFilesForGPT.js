@@ -41,6 +41,35 @@ function matchModulesFromHeaders(headers) {
   return [...matchedModules];
 }
 
+function downloadCsv(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve(data));
+    }).on('error', reject);
+  });
+}
+
+function matchModulesFromHeaders(headers) {
+  const matchedModules = new Set();
+
+  for (const header of headers) {
+    const col = header.toLowerCase();
+    console.log(`🔍 Checking header: ${col}`);
+    for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
+      for (const keyword of keywords) {
+        if (col.includes(keyword.toLowerCase())) {
+          console.log(`✅ Matched '${keyword}' → module '${module}'`);
+          matchedModules.add(module);
+        }
+      }
+    }
+  }
+
+  return [...matchedModules];
+}
+
 async function prepareFilesForGPT(uploadedCsvs, assistantId) {
   const moduleData = {};
   let allRows = [];
@@ -74,7 +103,10 @@ async function prepareFilesForGPT(uploadedCsvs, assistantId) {
 
     allRows = allRows.concat(records);
     const headers = Object.keys(records[0] || {});
+    console.log(`🧠 Headers detected:`, headers);
+
     const fileModules = matchModulesFromHeaders(headers);
+    console.log(`🧠 Matched modules: ${fileModules.join(', ') || '[none]'}`);
 
     fileModules.forEach(mod => matchedModules.add(mod));
 
@@ -103,3 +135,4 @@ async function prepareFilesForGPT(uploadedCsvs, assistantId) {
 }
 
 module.exports = { prepareFilesForGPT };
+
