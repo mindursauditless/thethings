@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { generateReport } = require('./create-report');
+const { generateReport } = require('./generate-report');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 
 const moduleNames = [
