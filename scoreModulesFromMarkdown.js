@@ -13,11 +13,19 @@ async function scoreModulesFromMarkdown(parent_id) {
   const systemPrompt = fs.readFileSync(promptPath, 'utf8');
 
   const files = fs.readdirSync(reportsDir).filter(f => f.startsWith(parent_id) && f.endsWith('.md'));
+  const allScores = {};
 
   for (const file of files) {
     const filePath = path.join(reportsDir, file);
-    const content = fs.readFileSync(filePath, 'utf8');
+    let content = fs.readFileSync(filePath, 'utf8');
     const moduleName = file.split('--')[1].replace('.md', '');
+
+    // Remove previous score block if it exists
+    const scoreMarker = '## Final Module Scoring';
+    if (content.includes(scoreMarker)) {
+      const parts = content.split('\n---\n');
+      content = parts[0].trim(); // Keep only the main report, strip scoring
+    }
 
     const prompt = `
 ${systemPrompt}
@@ -56,14 +64,24 @@ Please return only the JSON object.
 
       const scoreBlock = `\n---\n## Final Module Scoring\n**Priority:** ${score.priority}\n\n**Confidence:** ${score.confidence}\n\n**Score:** ${score.score}/10\n`;
 
-      fs.appendFileSync(filePath, scoreBlock);
+      const updated = `${content.trim()}\n${scoreBlock}`;
+      fs.writeFileSync(filePath, updated, 'utf8');
       console.log(`✅ Scored and updated: ${file}`);
 
       await uploadMarkdownToSupabase(parent_id, moduleName);
+      allScores[moduleName] = score;
     } catch (err) {
       console.error(`❌ Failed to score ${file}:`, err.message || err);
     }
   }
+
+  // Save all scores to /reports/{parent_id}/scores.json
+  const parentDir = path.join(reportsDir, parent_id);
+  if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir);
+
+  const scorePath = path.join(parentDir, 'scores.json');
+  fs.writeFileSync(scorePath, JSON.stringify(allScores, null, 2), 'utf8');
+  console.log(`📦 Saved all scores to: reports/${parent_id}/scores.json`);
 }
 
 module.exports = { scoreModulesFromMarkdown };
