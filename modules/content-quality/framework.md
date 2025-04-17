@@ -9,7 +9,7 @@
 ## Template Option
 
 ### High-Performance Service Page Template  
-Use this if the user’s data shows a service or SAP page needs a revamp.
+Use this if the user’s data shows a service or SAP page needs a revamp. Use a similar template for local businesses that are not service-based. Just make thos more industry-specific
 
 Recommended H1 Ideas
 
