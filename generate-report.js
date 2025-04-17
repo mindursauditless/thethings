@@ -7,20 +7,25 @@ require('dotenv').config();
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const REPORT_ASSISTANT_ID = process.env.REPORT_ASSISTANT_ID;
 
-async function generateReport(thread_id, moduleName) {
-  const filePath = path.join(__dirname, `downloads`, `${thread_id}--${moduleName}.json`);
-  const markdownPath = path.join(__dirname, `reports`, `${thread_id}--${moduleName}.md`);
-  const rows = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+async function generateReport(parent_id, moduleName, rankingData = []) {
+  const filePath = path.join(__dirname, 'downloads', `${parent_id}--${moduleName}.json`);
+  const markdownPath = path.join(__dirname, 'reports', `${parent_id}--${moduleName}.md`);
 
-  const prompt = loadModulePrompt(moduleName, rows);
+  let rows = [];
+  try {
+    rows = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (err) {
+    console.error(`❌ Failed to read data for ${moduleName}:`, err.message);
+    return null;
+  }
 
-  // 🔁 GPT thread/message/run logic goes here (Assistant API)
+  const prompt = loadModulePrompt(moduleName, rows, rankingData);
 
-  // For now: placeholder
+  // 🔁 GPT logic will go here later — for now, simple placeholder
   const markdown = `# ${moduleName} Report\n\nThis is a placeholder report for ${rows.length} rows.`;
 
   fs.writeFileSync(markdownPath, markdown);
-  await uploadMarkdownToSupabase(thread_id, moduleName);
+  await uploadMarkdownToSupabase(parent_id, moduleName);
 
   return markdown;
 }
