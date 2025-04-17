@@ -54,3 +54,11 @@ Internal links to other services or location pages
 Embedded Google Map if relevant
 
 Lead-gen CTA (form or tap-to-call)
+
+## Output Format
+1. Summary (why the issue matters)
+2. Affected URLs
+3. Action Plan (2–5 specific steps)
+4. Tools/Templates (include template above **only** if needed)
+5. Validation Notes (e.g., confirm content isn't ranking before suggesting rewrites)
+
