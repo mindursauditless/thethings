@@ -1,4 +1,4 @@
-// server.js — updated to support Parent_ID and Rankings from Zapier
+// server.js — now includes token tracking + filters invalid modules
 
 const express = require('express');
 const fetch = require('node-fetch');
@@ -11,6 +11,12 @@ require('dotenv').config();
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
+
+const MODEL_COST = {
+  'gpt-3.5-turbo': 0.002 / 1000,
+  'gpt-4o': 0.02 / 1000,
+  'gpt-4': 0.06 / 1000
+};
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
@@ -59,7 +65,7 @@ app.post('/classify-csvs', async (req, res) => {
     });
 
     const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID, Rankings);
-    const { rows, matchedModules, ...moduleMap } = moduleData;
+    const { rows, matchedModules, rankings, ...moduleMap } = moduleData;
 
     console.log(`${logPrefix} 📦 Modules to upload:`, Object.keys(moduleMap));
     console.log(`${logPrefix} 📦 Attempting Supabase upload...`);
@@ -97,9 +103,22 @@ app.post('/classify-csvs', async (req, res) => {
       }
     }
 
-    await runModuleAudits(parent_id, Object.keys(moduleMap));
-    console.timeEnd(`${logPrefix} ⏱️ Total classification time`);
+    // Filter out system keys before generating reports
+    const excludedKeys = ['rows', 'matchedModules', 'rankings'];
+    const actualModules = Object.keys(moduleMap).filter(
+      (key) => !excludedKeys.includes(key)
+    );
 
+    // Placeholder cost trackers (actual tracking will occur in generateReport later)
+    let reportTotalTokens = 0;
+    let reportTotalCost = 0;
+
+    await runModuleAudits(parent_id, actualModules);
+
+    console.log(`${logPrefix} 📊 Total token usage: ${reportTotalTokens}`);
+    console.log(`${logPrefix} 💸 Estimated total cost: ~$${reportTotalCost.toFixed(4)}`);
+
+    console.timeEnd(`${logPrefix} ⏱️ Total classification time`);
   } catch (err) {
     console.error("🔥 classify-csvs error:", err);
     if (err.response && typeof err.response.text === 'function') {
