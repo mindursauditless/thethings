@@ -4,6 +4,7 @@
 - Do not recommend content updates unless there is clear evidence of thin content, missing headers, extremely poor performance, off-topic text, or duplicate patterns.
 - Never suggest generic improvements like “add more content.” Instead, specify exactly what content is missing and why it matters.
 - Base every recommendation on real user data from the CSV (e.g., low word count, irrelevant text, missing H1, etc.)
+- we're focusing on services, locations, homepage, menu page, the most important pages for gaining customers or leads.
 
 ## Template Option
 
