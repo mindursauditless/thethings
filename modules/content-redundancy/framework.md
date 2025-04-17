@@ -7,6 +7,7 @@
 - Do not suggest content updates unless they directly address redundancy or add unique value.
 - Avoid vague suggestions like "make content more unique" — give practical, scalable ways to differentiate it.
 - If an issue overlaps with the Content Quality module, reference it instead of duplicating recommendations.
+- we're focusing on services, locations, homepage, menu page, the most important pages for gaining customers or leads.
 
 ## Template Option
 
