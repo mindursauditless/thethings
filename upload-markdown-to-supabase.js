@@ -1,4 +1,4 @@
-// upload-markdown-to-supabase.js — ensures upsert=true
+// upload-markdown-to-supabase.js — updated to use parent_id in all paths
 
 const fs = require('fs');
 const path = require('path');
@@ -12,22 +12,22 @@ const supabase = createClient(
 
 const BUCKET = 'reports';
 
-async function uploadMarkdownToSupabase(thread_id, module) {
+async function uploadMarkdownToSupabase(parent_id, module) {
   try {
-    const filePath = path.join(__dirname, 'reports', `${thread_id}--${module}.md`);
+    const filePath = path.join(__dirname, 'reports', `${parent_id}--${module}.md`);
     const fileBuffer = fs.readFileSync(filePath);
-    const remotePath = `reports/${thread_id}/${module}.md`;
+    const remotePath = `reports/${parent_id}/${module}.md`;
 
     const { data, error } = await supabase.storage
       .from(BUCKET)
       .upload(remotePath, fileBuffer, {
         contentType: 'text/markdown',
-        upsert: true // ✅ Allow overwriting old versions
+        upsert: true
       });
 
     if (error) throw error;
 
-    const publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${thread_id}/${module}.md`;
+    const publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${parent_id}/${module}.md`;
     return publicUrl;
   } catch (err) {
     console.error(`❌ Failed to upload ${module} report to Supabase:`, err);
