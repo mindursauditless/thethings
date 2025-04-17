@@ -1,4 +1,4 @@
-// server.js — cleaned up and streamlined for GPT classification only (no unnecessary thread/run)
+// server.js — updated to support Parent_ID and Rankings from Zapier
 
 const express = require('express');
 const fetch = require('node-fetch');
@@ -35,11 +35,12 @@ app.post('/classify-csvs', async (req, res) => {
       Email,
       Name,
       Files = '',
-      thread_id: incomingThreadId
+      Parent_ID,
+      Rankings
     } = req.body;
 
-    const thread_key = incomingThreadId || uuidv4();
-    const logPrefix = `🧩 [Thread ${thread_key}]`;
+    const parent_id = Parent_ID || uuidv4();
+    const logPrefix = `🧩 [Parent ${parent_id}]`;
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -57,7 +58,7 @@ app.post('/classify-csvs', async (req, res) => {
       };
     });
 
-    const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID);
+    const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID, Rankings);
     const { rows, matchedModules, ...moduleMap } = moduleData;
 
     console.log(`${logPrefix} 📦 Modules to upload:`, Object.keys(moduleMap));
@@ -73,7 +74,7 @@ app.post('/classify-csvs', async (req, res) => {
       }
 
       const jsonString = JSON.stringify(rows, null, 2);
-      const storagePath = `raw/${thread_key}/${module}.json`;
+      const storagePath = `raw/${parent_id}/${module}.json`;
       const endpoint = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${storagePath}`;
 
       console.time(`${logPrefix} ⏫ Upload ${storagePath}`);
@@ -96,7 +97,7 @@ app.post('/classify-csvs', async (req, res) => {
       }
     }
 
-    await runModuleAudits(thread_key, Object.keys(moduleMap));
+    await runModuleAudits(parent_id, Object.keys(moduleMap));
     console.timeEnd(`${logPrefix} ⏱️ Total classification time`);
 
   } catch (err) {
