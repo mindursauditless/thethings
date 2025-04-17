@@ -1,5 +1,4 @@
-const fs = require('fs');
-const path = require('path');
+const fetch = require('node-fetch');
 const { loadModulePrompt } = require('./moduleprompt');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 require('dotenv').config();
@@ -8,25 +7,27 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const REPORT_ASSISTANT_ID = process.env.REPORT_ASSISTANT_ID;
 
 async function generateReport(parent_id, moduleName, rankingData = []) {
-  const filePath = path.join(__dirname, 'downloads', `${parent_id}--${moduleName}.json`);
-  const markdownPath = path.join(__dirname, 'reports', `${parent_id}--${moduleName}.md`);
-
+  const remoteUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/raw-inputs/raw/${parent_id}/${moduleName}.json`;
   let rows = [];
+
   try {
-    rows = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const res = await fetch(remoteUrl);
+    if (!res.ok) {
+      console.error(`❌ Failed to fetch ${moduleName} from Supabase (${res.status})`);
+      return null;
+    }
+    rows = await res.json();
   } catch (err) {
-    console.error(`❌ Failed to read data for ${moduleName}:`, err.message);
+    console.error(`❌ Error parsing ${moduleName} data:`, err.message);
     return null;
   }
 
   const prompt = loadModulePrompt(moduleName, rows, rankingData);
 
-  // 🔁 GPT logic will go here later — for now, simple placeholder
+  // 🔁 GPT integration placeholder
   const markdown = `# ${moduleName} Report\n\nThis is a placeholder report for ${rows.length} rows.`;
 
-  fs.writeFileSync(markdownPath, markdown);
   await uploadMarkdownToSupabase(parent_id, moduleName);
-
   return markdown;
 }
 
