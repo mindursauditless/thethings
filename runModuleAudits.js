@@ -15,16 +15,18 @@ const moduleNames = [
   'local_visibility'
 ];
 
-async function runModuleAudits(thread_id, modules = moduleNames) {
-  if (!thread_id) {
-    console.error('❌ runModuleAudits() was called without a thread_id');
+async function runModuleAudits(parent_id, modules = moduleNames) {
+  if (!parent_id) {
+    console.error('❌ runModuleAudits() was called without a parent_id');
     return;
   }
 
   for (const moduleName of modules) {
     try {
       console.log(`📊 Generating module report: ${moduleName}`);
-      const content = await generateReport(thread_id, moduleName);
+
+      // Generate module markdown content (ready to accept rankings soon)
+      const content = await generateReport(parent_id, moduleName);
 
       if (!content) {
         console.error(`❌ GPT returned no content for ${moduleName}`);
@@ -34,11 +36,11 @@ async function runModuleAudits(thread_id, modules = moduleNames) {
       const reportsDir = path.join(__dirname, 'reports');
       if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir);
 
-      const filePath = path.join(reportsDir, `${thread_id}--${moduleName}.md`);
+      const filePath = path.join(reportsDir, `${parent_id}--${moduleName}.md`);
       fs.writeFileSync(filePath, content, 'utf8');
-      console.log(`✅ Saved report: /reports/${thread_id}--${moduleName}.md`);
+      console.log(`✅ Saved report: /reports/${parent_id}--${moduleName}.md`);
 
-      await uploadMarkdownToSupabase(thread_id, moduleName);
+      await uploadMarkdownToSupabase(parent_id, moduleName);
     } catch (err) {
       console.error(`❌ Error generating module report for ${moduleName}:`, err);
     }
