@@ -1,10 +1,9 @@
 # Framework for Content Quality Module
 
 ## Strategy Directives
-- Do not recommend content updates unless there is clear evidence of thin content, missing headers, off-topic text, or duplicate patterns.
+- Do not recommend content updates unless there is clear evidence of thin content, missing headers, extremely poor performance, off-topic text, or duplicate patterns.
 - Never suggest generic improvements like “add more content.” Instead, specify exactly what content is missing and why it matters.
 - Base every recommendation on real user data from the CSV (e.g., low word count, irrelevant text, missing H1, etc.)
-- Avoid restating things from other modules like internal links or schema — link to them if needed.
 
 ## Template Option
 
@@ -54,6 +53,7 @@ Internal links to other services or location pages
 Embedded Google Map if relevant
 
 Lead-gen CTA (form or tap-to-call)
+
 
 ## Output Format
 1. Summary (why the issue matters)
