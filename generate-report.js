@@ -3,6 +3,7 @@ const path = require('path');
 const fetch = require('node-fetch');
 const { loadModulePrompt } = require('./moduleprompt');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
+const { enhanceWithRankings } = require('./enhanceWithRankings');
 require('dotenv').config();
 
 async function generateReport(parent_id, moduleName, rankingData = []) {
@@ -23,19 +24,42 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
 
   const prompt = loadModulePrompt(moduleName, rows, rankingData);
 
-  // Placeholder markdown content
-  const markdown = `# ${moduleName} Report\n\nThis is a placeholder report for ${rows.length} rows.`;
+  // Step 1: Generate initial draft (placeholder or GPT-first-draft)
+  let markdown = `# ${moduleName} Report\n\nThis is a placeholder report for ${rows.length} rows.`;
+  console.log(`✍️ Draft report created for ${moduleName}`);
 
-  // ✅ Ensure /reports exists
+  // Step 2: Enhance with ranking data + scoring
+  const enhanced = await enhanceWithRankings({
+    moduleName,
+    parent_id,
+    rows,
+    rankingData,
+    reportMarkdown: markdown
+  });
+
+  if (enhanced && enhanced.markdown) {
+    markdown = enhanced.markdown;
+
+    // Step 3: Append score section to report
+    if (enhanced.score) {
+      const scoreBlock = `\n---\n## Module Scoring\n**Priority:** ${enhanced.score.priority}\n\n**Confidence:** ${enhanced.score.confidence}\n\n**Score:** ${enhanced.score.score}/10\n`;
+      markdown += scoreBlock;
+      console.log(`🎯 Score injected for ${moduleName}`);
+    }
+  } else {
+    console.warn(`⚠️ Enhancement failed or returned invalid data for ${moduleName}`);
+  }
+
+  // Step 4: Save .md file to /reports and re-upload
   const reportsDir = path.join(__dirname, 'reports');
   if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir);
 
-  // ✅ Save markdown file
   const markdownPath = path.join(reportsDir, `${parent_id}--${moduleName}.md`);
   fs.writeFileSync(markdownPath, markdown, 'utf8');
+  console.log(`✅ Saved report: /reports/${parent_id}--${moduleName}.md`);
 
-  // ✅ Upload to Supabase
   await uploadMarkdownToSupabase(parent_id, moduleName);
+  console.log(`📤 Uploaded updated report for ${moduleName}`);
 
   return markdown;
 }
