@@ -40,4 +40,4 @@ Now generate a complete SEO strategy audit report for the "${moduleName}" module
 Respond with fully formatted Markdown only. Do not echo the prompt or instructions.`;
 }
 
-module.exports = loadModulePrompt;
+module.exports = { loadModulePrompt };
