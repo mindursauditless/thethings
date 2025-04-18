@@ -1,5 +1,3 @@
-// upload-markdown-to-supabase.js — updated to use parent_id in all paths
-
 const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
@@ -12,27 +10,22 @@ const supabase = createClient(
 
 const BUCKET = 'reports';
 
-async function uploadMarkdownToSupabase(parent_id, module) {
-  try {
-    const filePath = path.join(__dirname, 'reports', `${parent_id}--${module}.md`);
-    const fileBuffer = fs.readFileSync(filePath);
-    const remotePath = `reports/${parent_id}/${module}.md`;
+async function uploadMarkdownToSupabase(parent_id, name, ext = 'md') {
+  const fsPath = path.join(__dirname, 'reports', parent_id, `${name}.${ext}`);
+  const remotePath = `reports/${parent_id}/${name}.${ext}`;
 
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .upload(remotePath, fileBuffer, {
-        contentType: 'text/markdown',
-        upsert: true
-      });
+  const fileBuffer = fs.readFileSync(fsPath);
+  const contentType = ext === 'json' ? 'application/json' : 'text/markdown';
 
-    if (error) throw error;
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .upload(remotePath, fileBuffer, {
+      contentType,
+      upsert: true
+    });
 
-    const publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${parent_id}/${module}.md`;
-    return publicUrl;
-  } catch (err) {
-    console.error(`❌ Failed to upload ${module} report to Supabase:`, err);
-    return null;
-  }
+  if (error) throw error;
+  return data;
 }
 
 module.exports = { uploadMarkdownToSupabase };
