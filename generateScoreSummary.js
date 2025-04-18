@@ -37,7 +37,7 @@ async function generateScoreSummary(parent_id) {
     }
   }
 
-  // Highlight standouts
+  // Highlights section
   md += `\n---\n\n## Highlights\n\n`;
 
   const topGain = topUps.sort((a, b) => b.delta - a.delta)[0];
@@ -53,9 +53,9 @@ async function generateScoreSummary(parent_id) {
   fs.writeFileSync(summaryPath, md, 'utf8');
   console.log(`📄 Generated summary.md for ${parent_id}`);
 
-  // Upload both summary.md + score_diff.json to Supabase
-  await uploadMarkdownToSupabase(parent_id, 'summary');
-  await uploadMarkdownToSupabase(parent_id, 'score_diff', 'json');
+  // ✅ Pass actual content to Supabase upload
+  await uploadMarkdownToSupabase(parent_id, 'summary', md);
+  await uploadMarkdownToSupabase(parent_id, 'score_diff', JSON.stringify(diff, null, 2), 'json');
 }
 
 module.exports = { generateScoreSummary };
