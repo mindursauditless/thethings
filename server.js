@@ -96,9 +96,7 @@ app.post('/classify-csvs', async (req, res) => {
     console.log(`${logPrefix} 🛠 Running module audits...`);
     await runModuleAudits(parent_id, actualModules, rankings);
 
-    console.log(`${logPrefix} 🧾 Final parent_id:`, parent_id);
-console.log(`${logPrefix} 🧾 Thread ID:`, thread_id);
-console.timeEnd(`${logPrefix} ⏱️ Total classification time`);
+    console.timeEnd(`${logPrefix} ⏱️ Total classification time`);
     console.log(`${logPrefix} ✅ Classification and audit complete`);
 
   } catch (err) {
