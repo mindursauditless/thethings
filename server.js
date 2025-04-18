@@ -1,28 +1,8 @@
-
-const express = require('express');
-const fetch = require('node-fetch');
-const fs = require('fs');
-const path = require('path');
+// ...top unchanged
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const { runModuleAudits } = require('./runModuleAudits');
-const { v4: uuidv4 } = require('uuid');
-require('dotenv').config();
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
-
-const app = express();
-app.use(express.json({ limit: '25mb' }));
-
-app.use((req, res, next) => {
-  console.log(`🛰️ Incoming ${req.method} ${req.url}`);
-  next();
-});
-
-app.get('/', (req, res) => {
-  console.log("👋 Root endpoint hit");
-  res.send('✅ Server is up and running with Supabase fetch uploader and GPT audit');
-});
+const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase'); // ✅ Needed for upload
+// ...rest of top unchanged
 
 app.post('/classify-csvs', async (req, res) => {
   console.log("📥 classify-csvs triggered");
@@ -49,9 +29,6 @@ app.post('/classify-csvs', async (req, res) => {
       return res.status(400).json({ error: 'Missing Parent_ID' });
     }
 
-    console.log("🧩 Parsed fields:", { Business_Name, Website_Link, Email, Name, Files, Rankings, parent_id });
-
-    // Send success response as late as possible
     res.status(200).json({ message: 'Received. Processing in background...' });
 
     const thread_key = uuidv4();
@@ -93,6 +70,19 @@ app.post('/classify-csvs', async (req, res) => {
     const actualModules = Object.keys(moduleMap).filter(key => moduleMap[key].length > 0);
     console.log(`${logPrefix} 📦 Modules with data:`, actualModules);
 
+    // ✅ New: Upload to Supabase before running audits
+    for (const moduleName of actualModules) {
+      const rows = moduleMap[moduleName];
+      console.log(`📤 Uploading module '${moduleName}' with ${rows.length} rows to Supabase...`);
+
+      try {
+        await uploadMarkdownToSupabase(parent_id, moduleName, rows);
+        console.log(`✅ Uploaded '${moduleName}' successfully`);
+      } catch (uploadErr) {
+        console.error(`❌ Failed to upload '${moduleName}':`, uploadErr.message || uploadErr);
+      }
+    }
+
     console.log(`${logPrefix} 🛠 Running module audits...`);
     await runModuleAudits(parent_id, actualModules, rankings);
 
@@ -111,5 +101,3 @@ app.post('/classify-csvs', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
