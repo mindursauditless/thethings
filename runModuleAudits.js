@@ -1,10 +1,6 @@
-
-// 🔧 PATCHED runModuleAudits.js
-
 const fs = require('fs');
 const path = require('path');
-const { generateReport } = require('./generate-report');
-const { scoreModulesFromMarkdown } = require('./scoreModulesFromMarkdown');
+const { enhanceAndScoreModules } = require('./enhanceAndScoreModules');
 const { generateScoreSummary } = require('./generateScoreSummary');
 const { runFinalReview } = require('./runFinalReview');
 
@@ -26,20 +22,11 @@ async function runModuleAudits(parent_id, modules = moduleNames, rankingData = [
     return;
   }
 
-  for (const moduleName of modules) {
-    try {
-      console.log(`📊 Generating module report: ${moduleName}`);
-      await generateReport(parent_id, moduleName, rankingData);
-    } catch (err) {
-      console.error(`❌ Error generating module report for ${moduleName}:`, err);
-    }
-  }
-
   try {
-    console.log(`🧮 Scoring reports...`);
-    await scoreModulesFromMarkdown(parent_id);
+    console.log(`🧠 Enhancing and scoring all modules...`);
+    await enhanceAndScoreModules(parent_id, modules, rankingData);
   } catch (err) {
-    console.error(`❌ Failed during scoring:`, err);
+    console.error(`❌ Failed during enhancement and scoring:`, err);
   }
 
   try {
