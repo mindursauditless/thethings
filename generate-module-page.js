@@ -1,108 +1,74 @@
-// generate-module-page.js — patched to send large content in chunks for Assistants API
-
-const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
-const { OpenAI } = require('openai');
-const loadModulePrompt = require('./moduleprompt');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
+const loadModulePrompt = require('./moduleprompt');
+const OpenAI = require('openai');
 require('dotenv').config();
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const SUPABASE_PROJECT = process.env.SUPABASE_URL.replace('https://', '');
-const RAW_BUCKET = 'raw-inputs';
-const MAX_CHUNK_SIZE = 950_000; // leave buffer for headers
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  defaultHeaders: {
+    'OpenAI-Beta': 'assistants=v2'
+  }
+});
 
-async function generateModulePage(thread_id, moduleName) {
+const ASSISTANT_ID = process.env.OPENAI_ASSISTANT_ID;
+
+async function generateModulePage(parent_id, moduleName, rows, rankingData = []) {
+  const prompt = loadModulePrompt(moduleName, rows, rankingData);
+
+  let markdown;
   try {
-    console.log(`🧠 Auditing module: ${moduleName}`);
-
-    const fileUrl = `https://${SUPABASE_PROJECT}/storage/v1/object/public/${RAW_BUCKET}/raw/${thread_id}/${moduleName}.json`;
-    const fileRes = await fetch(fileUrl);
-    if (!fileRes.ok) {
-      console.log(`⏩ Skipping ${moduleName} — could not fetch file (${fileRes.status})`);
-      return;
-    }
-
-    const rows = await fileRes.json();
-    console.log(`📦 ${rows.length} rows loaded for module '${moduleName}'`);
-
-    if (!rows.length) {
-      console.log(`⏩ Skipping ${moduleName} — no rows to analyze.`);
-      return;
-    }
-
-    const prompt = loadModulePrompt(moduleName, rows);
-
+    console.log(`📡 [${moduleName}] Creating Assistant thread...`);
     const thread = await openai.beta.threads.create();
-    console.log(`🧵 Created thread: ${thread.id}`);
 
-    const chunks = [];
-    for (let i = 0; i < prompt.length; i += MAX_CHUNK_SIZE) {
-      chunks.push(prompt.slice(i, i + MAX_CHUNK_SIZE));
-    }
-
-    for (const chunk of chunks) {
-      await openai.beta.threads.messages.create(thread.id, {
-        role: 'user',
-        content: [{ type: 'text', text: chunk }]
-      });
-    }
-
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: process.env.OPENAI_ASSISTANT_ID,
-      instructions: 'Only return valid Markdown, formatted as a strategy report.'
+    await openai.beta.threads.messages.create(thread.id, {
+      role: 'user',
+      content: prompt
     });
 
-    let runStatus = run.status;
-    while (runStatus !== 'completed' && runStatus !== 'failed') {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const statusCheck = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-      runStatus = statusCheck.status;
+    const run = await openai.beta.threads.runs.create(thread.id, {
+      assistant_id: ASSISTANT_ID
+    });
+
+    let completed = false;
+    let attempts = 0;
+    let result;
+
+    while (!completed && attempts < 20) {
+      await new Promise(res => setTimeout(res, 2000));
+      result = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      completed = result.status === 'completed';
+      attempts++;
     }
 
-    if (runStatus !== 'completed') {
-      throw new Error('GPT run failed');
+    if (!completed) {
+      console.warn(`⚠️ Assistant timeout for ${moduleName}`);
+      return;
     }
 
     const messages = await openai.beta.threads.messages.list(thread.id);
-    const assistantMsg = messages.data.find(m => m.role === 'assistant');
-    const gptContent = assistantMsg?.content?.[0]?.text?.value?.trim();
+    const last = messages.data.find(m => m.role === 'assistant');
+    markdown = last?.content?.[0]?.text?.value?.trim();
 
-    if (!gptContent || gptContent.length < 10) {
-      throw new Error('GPT returned no usable content');
+    if (!markdown) {
+      console.warn(`⚠️ Assistant returned no content for ${moduleName}`);
+      return;
     }
-
-    const reportsDir = path.join(__dirname, 'reports');
-    if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir);
-
-    const filePath = path.join(reportsDir, `${thread_id}--${moduleName}.md`);
-    fs.writeFileSync(filePath, gptContent, 'utf8');
-    console.log(`✅ Saved report: /reports/${thread_id}--${moduleName}.md`);
-
-    console.log(`📤 Attempting upload for ${thread_id}--${moduleName}.md`);
-    const url = await uploadMarkdownToSupabase(thread_id, moduleName, gptContent);
-
-    if (url) {
-      console.log(`🔗 Supabase URL: ${url}`);
-    } else {
-      console.log(`❌ Upload failed or returned null`);
-    }
-
-    return url;
   } catch (err) {
-    console.error(`🔥 Error generating module report for ${moduleName}:`, err);
+    console.error(`❌ Assistant error for ${moduleName}:`, err.message);
+    return;
+  }
+
+  try {
+    const outPath = path.join(__dirname, 'reports', `${parent_id}--${moduleName}.md`);
+    fs.writeFileSync(outPath, markdown, 'utf8');
+    console.log(`📄 Saved final module page to ${outPath}`);
+    await uploadMarkdownToSupabase(parent_id, moduleName, markdown);
+    console.log(`📤 Uploaded ${moduleName} to Supabase`);
+  } catch (err) {
+    console.error(`❌ Save/upload failed for ${moduleName}:`, err.message);
   }
 }
 
-async function generateAllModules(thread_id, modules = []) {
-  const links = [];
-  for (const module of modules) {
-    const url = await generateModulePage(thread_id, module);
-    if (url) links.push({ module, url });
-  }
-  console.log(`⏱️ Total classification time: ${new Date().toLocaleTimeString()}`);
-  return links;
-}
-
-module.exports = { generateModulePage, generateAllModules };
+module.exports = { generateModulePage };
