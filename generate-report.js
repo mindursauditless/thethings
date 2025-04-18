@@ -1,21 +1,15 @@
 const fs = require('fs');
 const path = require('path');
+const fetch = require('node-fetch');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 const loadModulePrompt = require('./moduleprompt');
-const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-console.log("✅ Using Assistant v2 generate-report.js");
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  defaultHeaders: {
-    'OpenAI-Beta': 'assistants=v2'
-  }
-});
+console.log("✅ Using fetch-based Assistant v2 generate-report.js");
 
 const REPORT_MODEL = process.env.REPORT_MODEL;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 async function fetchRawJsonFromSupabase(parent_id, moduleName) {
@@ -43,30 +37,47 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
 
   let markdown;
   try {
-    console.log("🧪 Running GPT enhancement for", moduleName, "with model", REPORT_MODEL);
-    console.log("🧪 This SHOULD be Assistant v2!");
+    console.log("🧠 Fetch-based Assistant run for:", moduleName);
 
-    const thread = await openai.beta.threads.create();
+    const headers = {
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+      'OpenAI-Beta': 'assistants=v2'
+    };
 
-    await openai.beta.threads.messages.create(thread.id, {
-      role: 'user',
-      content: prompt
+    const threadRes = await fetch("https://api.openai.com/v1/threads", {
+      method: 'POST',
+      headers
+    });
+    const thread = await threadRes.json();
+
+    await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        role: 'user',
+        content: prompt
+      })
     });
 
-    const run = await openai.beta.threads.runs.create(
-      thread.id,
-      { assistant_id: REPORT_MODEL },
-      { headers: { 'OpenAI-Beta': 'assistants=v2' } }
-    );
+    const runRes = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        assistant_id: REPORT_MODEL
+      })
+    });
+    const run = await runRes.json();
 
     let completed = false;
-    let attempts = 0;
-    let maxAttempts = 20;
     let result;
-
-    while (!completed && attempts < maxAttempts) {
+    let attempts = 0;
+    while (!completed && attempts < 20) {
       await new Promise(res => setTimeout(res, 2000));
-      result = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      const poll = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`, {
+        headers
+      });
+      result = await poll.json();
       completed = result.status === 'completed';
       attempts++;
     }
@@ -76,7 +87,10 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
       return;
     }
 
-    const messages = await openai.beta.threads.messages.list(thread.id);
+    const msgRes = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
+      headers
+    });
+    const messages = await msgRes.json();
     const last = messages.data.find(m => m.role === 'assistant');
     markdown = last?.content?.[0]?.text?.value?.trim();
 
@@ -84,6 +98,7 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
       console.warn(`⚠️ GPT returned no markdown for ${moduleName}`);
       return;
     }
+
   } catch (err) {
     console.error(`❌ GPT enhancement failed for ${moduleName}:`, err.message);
     return;
