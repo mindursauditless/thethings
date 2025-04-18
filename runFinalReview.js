@@ -10,7 +10,8 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 function saveReportUnprocessed({ moduleName, parent_id, reason }) {
   const unprocessedPath = path.join(__dirname, 'reports', parent_id, `skipped-${moduleName}.log`);
   const timestamp = new Date().toISOString();
-  fs.writeFileSync(unprocessedPath, `[${timestamp}] Skipped ${moduleName}: ${reason}\n`);
+  fs.writeFileSync(unprocessedPath, `[${timestamp}] Skipped ${moduleName}: ${reason}
+`);
 }
 
 async function runFinalReview(parent_id, rankingData = []) {
@@ -50,7 +51,6 @@ async function runFinalReview(parent_id, rankingData = []) {
     const reportPath = path.join(reportDir, file);
     const originalMarkdown = fs.readFileSync(reportPath, 'utf8');
 
-    // Fetch raw JSON from Supabase
     const rawUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/raw-inputs/raw/${parent_id}/${moduleName}.json`;
     let rawModuleData = [];
 
@@ -120,7 +120,7 @@ Return only your final markdown version of the module report.
       fs.writeFileSync(finalPath, finalMarkdown, 'utf8');
       console.log(`🧼 Final rewrite complete: ${finalPath}`);
 
-      await uploadMarkdownToSupabase(parent_id, `final-${moduleName}-${timestamp.replace(/:/g, '-')}`);
+      await uploadMarkdownToSupabase(parent_id, `final-${moduleName}-${timestamp}`, finalMarkdown);
       console.log(`📤 Final report uploaded for: ${moduleName}`);
     } catch (err) {
       console.error(`❌ GPT error during final review for ${moduleName}:`, err.message);
