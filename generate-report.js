@@ -47,20 +47,23 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
 
   } catch (err) {
     console.error(`⚠️ Enhancement error for ${moduleName}:`, err.message);
+    return; // early return on enhancement failure
   }
 
-  if (enhanced && enhanced.markdown) {
-    markdown = enhanced.markdown;
-
-    if (enhanced.score) {
-      const scoreBlock = `\n---\n## Module Scoring\n**Priority:** ${enhanced.score.priority}\n\n**Confidence:** ${enhanced.score.confidence}\n\n**Score:** ${enhanced.score.score}/10\n`;
-      markdown += scoreBlock;
-      console.log(`🎯 Score injected for ${moduleName}`);
-    } else {
-      console.warn(`⚠️ No scoring object returned from GPT for ${moduleName}`);
-    }
-  } else {
+  if (!enhanced || !enhanced.markdown || enhanced.markdown.trim() === 'undefined') {
     console.warn(`⚠️ Enhancement failed or returned invalid data for ${moduleName}`);
+    return;
+  }
+
+  markdown = enhanced.markdown;
+
+  // Append scoring block
+  if (enhanced.score) {
+    const scoreBlock = `\n---\n## Module Scoring\n**Priority:** ${enhanced.score.priority}\n\n**Confidence:** ${enhanced.score.confidence}\n\n**Score:** ${enhanced.score.score}/10\n`;
+    markdown += scoreBlock;
+    console.log(`🎯 Score injected for ${moduleName}`);
+  } else {
+    console.warn(`⚠️ No scoring object returned from GPT for ${moduleName}`);
   }
 
   // Step 3: Save .md file
@@ -71,15 +74,20 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
   fs.writeFileSync(markdownPath, markdown, 'utf8');
   console.log(`✅ Saved report: /reports/${parent_id}--${moduleName}.md`);
 
-  // Step 4: Safely upload only if the file exists
+  // Step 4: Upload to Supabase if file exists
   if (!fs.existsSync(markdownPath)) {
     console.warn(`⚠️ Skipping upload for ${moduleName} — markdown file not found.`);
     return;
   }
 
-  await uploadMarkdownToSupabase(parent_id, moduleName);
-  console.log(`📤 Uploaded updated report for ${moduleName}`);
+  try {
+    await uploadMarkdownToSupabase(parent_id, moduleName);
+    console.log(`📤 Uploaded updated report for ${moduleName}`);
+  } catch (uploadErr) {
+    console.error(`❌ Failed to upload ${moduleName} report:`, uploadErr.message);
+  }
 
+  console.log(`✅ Finished module: ${moduleName}`);
   return markdown;
 }
 
