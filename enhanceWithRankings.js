@@ -77,9 +77,24 @@ Then score this module:
 
 module.exports = { enhanceWithRankings };
 
-const extracted = JSON.parse(raw);
+const raw = data.choices?.[0]?.message?.content;
+
+if (!raw || typeof raw !== 'string') {
+  console.error(`❌ GPT did not return a usable markdown+score object for ${moduleName}`);
+  return null;
+}
+
+let extracted;
+try {
+  extracted = JSON.parse(raw);
+} catch (err) {
+  console.error(`❌ Failed to parse JSON for ${moduleName}:`, err.message);
+  return null;
+}
+
 return {
   ...extracted,
   usage: data.usage
 };
+
 
