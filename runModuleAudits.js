@@ -1,5 +1,3 @@
-const fs = require('fs');
-const path = require('path');
 const { enhanceAndScoreModules } = require('./enhanceAndScoreModules');
 const { generateScoreSummary } = require('./generateScoreSummary');
 const { runFinalReview } = require('./runFinalReview');
@@ -16,6 +14,9 @@ const moduleNames = [
   'service_area_pages'
 ];
 
+/**
+ * Full audit process: Enhance reports with GPT, score, summarize, final review
+ */
 async function runModuleAudits(parent_id, modules = moduleNames, rankingData = []) {
   if (!parent_id) {
     console.error('❌ runModuleAudits() was called without a parent_id');
