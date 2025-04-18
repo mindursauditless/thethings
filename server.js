@@ -1,4 +1,5 @@
-// server.js — now includes token tracking + filters invalid modules
+
+// 🔧 PATCHED server.js
 
 const express = require('express');
 const fetch = require('node-fetch');
@@ -11,12 +12,6 @@ require('dotenv').config();
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
-
-const MODEL_COST = {
-  'gpt-3.5-turbo': 0.002 / 1000,
-  'gpt-4o': 0.02 / 1000,
-  'gpt-4': 0.06 / 1000
-};
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
@@ -41,18 +36,17 @@ app.post('/classify-csvs', async (req, res) => {
       Email,
       Name,
       Files = '',
-      Parent_ID,
-      Rankings
+      Rankings = '',
+      Parent_ID: parent_id
     } = req.body;
 
-    const parent_id = Parent_ID || uuidv4();
+    const thread_key = uuidv4();
     const logPrefix = `🧩 [Parent ${parent_id}]`;
 
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SUPABASE_KEY = process.env.SUPABASE_KEY;
-    const BUCKET = 'raw-inputs';
-
     console.log(`${logPrefix} Zapier Data:`, { Business_Name, Website_Link, Email, Name });
+    if (!Files) console.warn(`${logPrefix} ⚠️ No CSVs provided in Files`);
+    if (!Rankings) console.warn(`${logPrefix} ⚠️ No ranking data received`);
+
     console.time(`${logPrefix} ⏱️ Total classification time`);
 
     const fileUrls = Files.split(',').map(url => url.trim()).filter(Boolean);
@@ -64,61 +58,25 @@ app.post('/classify-csvs', async (req, res) => {
       };
     });
 
-    const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID, Rankings);
-    const { rows, matchedModules, rankings, ...moduleMap } = moduleData;
+    const rankingUrls = Rankings.split(',').map(url => url.trim()).filter(Boolean);
+    const uploadedRankings = rankingUrls.map(url => {
+      const parts = url.split('/');
+      return {
+        filename: decodeURIComponent(parts[parts.length - 1]),
+        url
+      };
+    });
 
-    console.log(`${logPrefix} 📦 Modules to upload:`, Object.keys(moduleMap));
-    console.log(`${logPrefix} 📦 Attempting Supabase upload...`);
-    console.log("🧪 Supabase URL:", SUPABASE_URL);
-    console.log("🧪 Supabase Key length:", SUPABASE_KEY?.length);
-    console.log("🧪 Supabase Bucket:", BUCKET);
+    const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID, uploadedRankings);
+    const { rankings, ...moduleMap } = moduleData;
 
-    for (const [module, rows] of Object.entries(moduleMap)) {
-      if (rows.length === 0) {
-        console.log(`${logPrefix} ⚠️ Skipping empty module '${module}'`);
-        continue;
-      }
+    const actualModules = Object.keys(moduleMap).filter(key => moduleMap[key].length > 0);
+    console.log(`${logPrefix} 📦 Modules with data:`, actualModules);
 
-      const jsonString = JSON.stringify(rows, null, 2);
-      const storagePath = `raw/${parent_id}/${module}.json`;
-      const endpoint = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${storagePath}`;
-
-      console.time(`${logPrefix} ⏫ Upload ${storagePath}`);
-      const uploadRes = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: jsonString
-      });
-      const result = await uploadRes.text();
-      console.timeEnd(`${logPrefix} ⏫ Upload ${storagePath}`);
-      console.log(`${logPrefix} 🧪 Supabase response:`, uploadRes.status, result);
-
-      if (!uploadRes.ok) {
-        console.error(`${logPrefix} ❌ Failed to upload ${storagePath} to Supabase`);
-      } else {
-        console.log(`${logPrefix} ✅ Uploaded to Supabase: ${storagePath}`);
-      }
-    }
-
-    // Filter out system keys before generating reports
-    const excludedKeys = ['rows', 'matchedModules', 'rankings'];
-    const actualModules = Object.keys(moduleMap).filter(
-      (key) => !excludedKeys.includes(key)
-    );
-
-    // Placeholder cost trackers (actual tracking will occur in generateReport later)
-    let reportTotalTokens = 0;
-    let reportTotalCost = 0;
-
-    await runModuleAudits(parent_id, actualModules);
-
-    console.log(`${logPrefix} 📊 Total token usage: ${reportTotalTokens}`);
-    console.log(`${logPrefix} 💸 Estimated total cost: ~$${reportTotalCost.toFixed(4)}`);
+    await runModuleAudits(parent_id, actualModules, rankings);
 
     console.timeEnd(`${logPrefix} ⏱️ Total classification time`);
+    console.log(`${logPrefix} ✅ Classification and audit complete`);
   } catch (err) {
     console.error("🔥 classify-csvs error:", err);
     if (err.response && typeof err.response.text === 'function') {
