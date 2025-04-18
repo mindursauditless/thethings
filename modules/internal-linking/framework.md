@@ -8,6 +8,14 @@
 - Focus on internal links that occur *within the body* of content, not just nav or footer.
 - Provide scalable, user-friendly internal linking strategies — never force links or add them where they feel unnatural.
 
+If a useful insight can be logically inferred from patterns in the data (e.g. repeated structures, high frequency, consistent gaps), you're allowed to do so — but be transparent.
+
+Avoid making guesses about missing information. If a data point is missing, describe the implications of that absence or recommend how it could be collected.
+
+These templates should be added to the overall report. You are helping build the full report and we want to provide real actionable insights. We don't want lame obvious recommendations like you need more content on your thin pages.... give them actual guidance on what the pages should look like, what should be the focus/target of those pages, what the benefit/impact would be of improving them and use specific examples.
+
+Our goal isn't to repeat issues they already know about from the csv data... We want to provide actual insights and recommendations.
+
 ## Template Option
 
 ### Scalable Internal Linking Recommendations  
