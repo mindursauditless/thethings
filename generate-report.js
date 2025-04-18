@@ -6,7 +6,13 @@ const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  defaultHeaders: {
+    'OpenAI-Beta': 'assistants=v2'
+  }
+});
+
 const REPORT_MODEL = process.env.REPORT_MODEL;
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
