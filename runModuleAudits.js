@@ -11,13 +11,13 @@ const { runFinalReview } = require('./runFinalReview');
 const moduleNames = [
   'schema',
   'internal_links',
+  'onsite',
+  'content_redundancy',
   'content_quality',
+  'indexing',
   'information_architecture',
-  'service_area_pages',
-  'topical_authority',
-  'onpage_optimization',
-  'conversion_barriers',
-  'local_visibility'
+  'gbp',
+  'service_area_pages'
 ];
 
 async function runModuleAudits(parent_id, modules = moduleNames, rankingData = []) {
