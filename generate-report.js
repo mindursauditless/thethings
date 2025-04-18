@@ -20,7 +20,6 @@ async function fetchRawJsonFromSupabase(parent_id, moduleName) {
   const path = `raw/${parent_id}/${moduleName}.json`;
   const { data, error } = await supabase.storage.from('raw-inputs').download(path);
   if (error) throw new Error(`Supabase fetch failed for ${moduleName}: ${error.message}`);
-
   const text = await data.text();
   return JSON.parse(text);
 }
