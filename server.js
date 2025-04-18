@@ -1,8 +1,15 @@
-// ...top unchanged
+const express = require('express');
+const fetch = require('node-fetch');
+const fs = require('fs');
+const path = require('path');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const { runModuleAudits } = require('./runModuleAudits');
-const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase'); // ✅ Needed for upload
-// ...rest of top unchanged
+const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
+const { v4: uuidv4 } = require('uuid');
+require('dotenv').config();
+
+const app = express(); // ✅ ← This is the missing line
+app.use(express.json({ limit: '25mb' }));
 
 app.post('/classify-csvs', async (req, res) => {
   console.log("📥 classify-csvs triggered");
