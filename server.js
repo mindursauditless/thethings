@@ -5,6 +5,7 @@ const path = require('path');
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const { runModuleAudits } = require('./runModuleAudits');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
+const { uploadJsonToSupabase } = require('./upload-json-to-supabase');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
@@ -25,7 +26,9 @@ app.get('/', (req, res) => {
 });
 
 function generateMarkdownFromRows(moduleName, rows) {
-  const header = `# ${moduleName.replace(/_/g, ' ').toUpperCase()}\n\n`;
+  const header = `# ${moduleName.replace(/_/g, ' ').toUpperCase()}
+
+`;
   const body = rows.map((row, i) => {
     const rowLines = Object.entries(row)
       .map(([key, val]) => `**${key}**: ${val}`)
@@ -100,15 +103,20 @@ app.post('/classify-csvs', async (req, res) => {
     const actualModules = Object.keys(moduleMap).filter(key => moduleMap[key].length > 0);
     console.log(`${logPrefix} 📦 Modules with data:`, actualModules);
 
-    // ✅ Upload to Supabase
     for (const moduleName of actualModules) {
       const rows = moduleMap[moduleName];
       console.log(`📤 Uploading module '${moduleName}' with ${rows.length} rows to Supabase...`);
 
       try {
         const markdown = generateMarkdownFromRows(moduleName, rows);
+
+        // Upload parsed rows to raw-inputs (as .json)
+        await uploadJsonToSupabase('raw-inputs', parent_id, moduleName, rows);
+        console.log(`✅ Uploaded raw JSON for '${moduleName}' to raw-inputs`);
+
+        // Upload markdown report to reports/
         await uploadMarkdownToSupabase(parent_id, moduleName, markdown);
-        console.log(`✅ Uploaded '${moduleName}' successfully`);
+        console.log(`✅ Uploaded '${moduleName}' markdown to reports`);
       } catch (uploadErr) {
         console.error(`❌ Failed to upload '${moduleName}':`, uploadErr.message || uploadErr);
       }
