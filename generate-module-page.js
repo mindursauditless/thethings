@@ -1,43 +1,62 @@
 const fs = require('fs');
 const path = require('path');
+const fetch = require('node-fetch');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 const loadModulePrompt = require('./moduleprompt');
-const OpenAI = require('openai');
 require('dotenv').config();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  defaultHeaders: {
-    'OpenAI-Beta': 'assistants=v2'
-  }
-});
+console.log("✅ Using fetch-based Assistant v2 generate-module-page.js");
 
 const ASSISTANT_ID = process.env.OPENAI_ASSISTANT_ID;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 async function generateModulePage(parent_id, moduleName, rows, rankingData = []) {
   const prompt = loadModulePrompt(moduleName, rows, rankingData);
-
   let markdown;
+
   try {
     console.log(`📡 [${moduleName}] Creating Assistant thread...`);
-    const thread = await openai.beta.threads.create();
 
-    await openai.beta.threads.messages.create(thread.id, {
-      role: 'user',
-      content: prompt
+    const headers = {
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+      'OpenAI-Beta': 'assistants=v2'
+    };
+
+    const threadRes = await fetch("https://api.openai.com/v1/threads", {
+      method: 'POST',
+      headers
+    });
+    const thread = await threadRes.json();
+
+    await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        role: 'user',
+        content: prompt
+      })
     });
 
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: ASSISTANT_ID
+    const runRes = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        assistant_id: ASSISTANT_ID
+      })
     });
+    const run = await runRes.json();
 
     let completed = false;
-    let attempts = 0;
     let result;
+    let attempts = 0;
 
     while (!completed && attempts < 20) {
       await new Promise(res => setTimeout(res, 2000));
-      result = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      const pollRes = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`, {
+        headers
+      });
+      result = await pollRes.json();
       completed = result.status === 'completed';
       attempts++;
     }
@@ -47,7 +66,10 @@ async function generateModulePage(parent_id, moduleName, rows, rankingData = [])
       return;
     }
 
-    const messages = await openai.beta.threads.messages.list(thread.id);
+    const messagesRes = await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
+      headers
+    });
+    const messages = await messagesRes.json();
     const last = messages.data.find(m => m.role === 'assistant');
     markdown = last?.content?.[0]?.text?.value?.trim();
 
@@ -55,6 +77,7 @@ async function generateModulePage(parent_id, moduleName, rows, rankingData = [])
       console.warn(`⚠️ Assistant returned no content for ${moduleName}`);
       return;
     }
+
   } catch (err) {
     console.error(`❌ Assistant error for ${moduleName}:`, err.message);
     return;
