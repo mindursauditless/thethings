@@ -6,14 +6,14 @@ const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
+console.log("✅ Using Assistant v2 generate-report.js");
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   defaultHeaders: {
     'OpenAI-Beta': 'assistants=v2'
   }
 });
-
-console.log("🧠 generate-report.js is using Assistant v2");
 
 const REPORT_MODEL = process.env.REPORT_MODEL;
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
@@ -43,7 +43,9 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
 
   let markdown;
   try {
-    console.log(`📡 Creating Assistant thread for ${moduleName}`);
+    console.log("🧪 Running GPT enhancement for", moduleName, "with model", REPORT_MODEL);
+    console.log("🧪 This SHOULD be Assistant v2!");
+
     const thread = await openai.beta.threads.create();
 
     await openai.beta.threads.messages.create(thread.id, {
