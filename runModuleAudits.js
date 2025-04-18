@@ -2,6 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const { generateReport } = require('./generate-report');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
+const { scoreModulesFromMarkdown } = require('./scoreModulesFromMarkdown');
+const { generateScoreSummary } = require('./generateScoreSummary');
+const { runFinalReview } = require('./runFinalReview');
 
 const moduleNames = [
   'schema',
@@ -15,7 +18,7 @@ const moduleNames = [
   'local_visibility'
 ];
 
-async function runModuleAudits(parent_id, modules = moduleNames) {
+async function runModuleAudits(parent_id, modules = moduleNames, rankingData = []) {
   if (!parent_id) {
     console.error('❌ runModuleAudits() was called without a parent_id');
     return;
@@ -25,8 +28,7 @@ async function runModuleAudits(parent_id, modules = moduleNames) {
     try {
       console.log(`📊 Generating module report: ${moduleName}`);
 
-      // Generate module markdown content (ready to accept rankings soon)
-      const content = await generateReport(parent_id, moduleName);
+      const content = await generateReport(parent_id, moduleName, rankingData);
 
       if (!content) {
         console.error(`❌ GPT returned no content for ${moduleName}`);
@@ -45,6 +47,11 @@ async function runModuleAudits(parent_id, modules = moduleNames) {
       console.error(`❌ Error generating module report for ${moduleName}:`, err);
     }
   }
+
+  // 📈 Post-processing pipeline
+  await scoreModulesFromMarkdown(parent_id);
+  await generateScoreSummary(parent_id);
+  await runFinalReview(parent_id, rankingData);
 }
 
 module.exports = { runModuleAudits };
