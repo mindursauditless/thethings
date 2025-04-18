@@ -24,11 +24,11 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
 
   const prompt = loadModulePrompt(moduleName, rows, rankingData);
 
-  // Step 1: Generate initial draft
-  let markdown = `# ${moduleName} Report\n\nThis is a placeholder report for ${rows.length} rows.`;
+  let markdown = `# ${moduleName} Report
+
+This is a placeholder report for ${rows.length} rows.`;
   console.log(`✍️ Draft report created for ${moduleName}`);
 
-  // Step 2: Enhance with ranking data
   let enhanced;
   try {
     enhanced = await enhanceWithRankings({
@@ -47,7 +47,7 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
 
   } catch (err) {
     console.error(`⚠️ Enhancement error for ${moduleName}:`, err.message);
-    return; // early return on enhancement failure
+    return;
   }
 
   if (!enhanced || !enhanced.markdown || enhanced.markdown.trim() === 'undefined') {
@@ -57,16 +57,22 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
 
   markdown = enhanced.markdown;
 
-  // Append scoring block
   if (enhanced.score) {
-    const scoreBlock = `\n---\n## Module Scoring\n**Priority:** ${enhanced.score.priority}\n\n**Confidence:** ${enhanced.score.confidence}\n\n**Score:** ${enhanced.score.score}/10\n`;
+    const scoreBlock = `
+---
+## Module Scoring
+**Priority:** ${enhanced.score.priority}
+
+**Confidence:** ${enhanced.score.confidence}
+
+**Score:** ${enhanced.score.score}/10
+`;
     markdown += scoreBlock;
     console.log(`🎯 Score injected for ${moduleName}`);
   } else {
     console.warn(`⚠️ No scoring object returned from GPT for ${moduleName}`);
   }
 
-  // Step 3: Save .md file
   const reportsDir = path.join(__dirname, 'reports');
   if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir);
 
@@ -74,14 +80,8 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
   fs.writeFileSync(markdownPath, markdown, 'utf8');
   console.log(`✅ Saved report: /reports/${parent_id}--${moduleName}.md`);
 
-  // Step 4: Upload to Supabase if file exists
-  if (!fs.existsSync(markdownPath)) {
-    console.warn(`⚠️ Skipping upload for ${moduleName} — markdown file not found.`);
-    return;
-  }
-
   try {
-    await uploadMarkdownToSupabase(parent_id, moduleName);
+    await uploadMarkdownToSupabase(parent_id, moduleName, markdown);
     console.log(`📤 Uploaded updated report for ${moduleName}`);
   } catch (uploadErr) {
     console.error(`❌ Failed to upload ${moduleName} report:`, uploadErr.message);
