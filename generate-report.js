@@ -2,10 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 const loadModulePrompt = require('./moduleprompt');
-const { createRunAndPoll } = require('./createRunAndPoll');
+const { createClient } = require('openai');
 require('dotenv').config();
 
-const REPORT_MODEL = process.env.REPORT_MODEL || 'gpt-3.5-turbo';
+const openai = new createClient(process.env.OPENAI_API_KEY);
+const REPORT_MODEL = process.env.REPORT_MODEL;
 
 async function generateReport(parent_id, moduleName, rankingData = []) {
   const rawPath = path.join(__dirname, 'raw', parent_id, `${moduleName}.json`);
@@ -19,21 +20,49 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
 
   const rows = JSON.parse(fs.readFileSync(rawPath, 'utf8'));
   const trimmedRows = rows.slice(0, 50);
-
-  console.log(`✍️ Building GPT prompt for module: ${moduleName}`);
   const prompt = loadModulePrompt(moduleName, trimmedRows, rankingData);
 
   let markdown;
   try {
-    const result = await createRunAndPoll(prompt, REPORT_MODEL);
-    markdown = result?.content?.trim();
+    console.log(`📡 Creating Assistant thread for ${moduleName}`);
+    const thread = await openai.beta.threads.create();
 
-    if (!markdown || markdown === 'undefined') {
-      console.warn(`⚠️ GPT returned no usable content for ${moduleName}`);
+    await openai.beta.threads.messages.create(thread.id, {
+      role: 'user',
+      content: prompt
+    });
+
+    const run = await openai.beta.threads.runs.create(thread.id, {
+      assistant_id: REPORT_MODEL
+    });
+
+    let completed = false;
+    let attempts = 0;
+    let maxAttempts = 20;
+    let result;
+
+    while (!completed && attempts < maxAttempts) {
+      await new Promise(res => setTimeout(res, 2000));
+      result = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      completed = result.status === 'completed';
+      attempts++;
+    }
+
+    if (!completed) {
+      console.warn(`⏱️ GPT run for ${moduleName} timed out`);
+      return;
+    }
+
+    const messages = await openai.beta.threads.messages.list(thread.id);
+    const last = messages.data.find(m => m.role === 'assistant');
+    markdown = last?.content?.[0]?.text?.value?.trim();
+
+    if (!markdown) {
+      console.warn(`⚠️ GPT returned no markdown for ${moduleName}`);
       return;
     }
   } catch (err) {
-    console.error(`❌ GPT request failed for ${moduleName}:`, err.message);
+    console.error(`❌ GPT enhancement failed for ${moduleName}:`, err.message);
     return;
   }
 
