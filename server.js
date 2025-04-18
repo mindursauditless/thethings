@@ -8,6 +8,9 @@ const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
+
 const app = express(); // ✅ ← This is the missing line
 app.use(express.json({ limit: '25mb' }));
 
