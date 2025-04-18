@@ -13,6 +13,8 @@ const openai = new OpenAI({
   }
 });
 
+console.log("🧠 generate-report.js is using Assistant v2");
+
 const REPORT_MODEL = process.env.REPORT_MODEL;
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
