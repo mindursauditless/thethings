@@ -53,9 +53,11 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
       content: prompt
     });
 
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: REPORT_MODEL
-    });
+    const run = await openai.beta.threads.runs.create(
+      thread.id,
+      { assistant_id: REPORT_MODEL },
+      { headers: { 'OpenAI-Beta': 'assistants=v2' } }
+    );
 
     let completed = false;
     let attempts = 0;
