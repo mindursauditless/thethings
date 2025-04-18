@@ -67,10 +67,11 @@ Then score this module:
     const data = await response.json();
     const raw = data.choices?.[0]?.message?.content;
 
-    if (!raw || typeof raw !== 'string') {
-      console.error(`❌ GPT did not return a usable markdown+score object for ${moduleName}`);
+    if (!raw || typeof raw !== 'string' || raw.trim() === 'undefined') {
+      console.error(`❌ GPT returned 'undefined' or unusable markdown+score object for ${moduleName}`);
       return null;
     }
+
 
     let extracted;
     try {
