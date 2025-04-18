@@ -3,25 +3,34 @@ const path = require('path');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 const loadModulePrompt = require('./moduleprompt');
 const OpenAI = require('openai');
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const REPORT_MODEL = process.env.REPORT_MODEL;
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+async function fetchRawJsonFromSupabase(parent_id, moduleName) {
+  const path = `raw/${parent_id}/${moduleName}.json`;
+  const { data, error } = await supabase.storage.from('raw-inputs').download(path);
+  if (error) throw new Error(`Supabase fetch failed for ${moduleName}: ${error.message}`);
+
+  const text = await data.text();
+  return JSON.parse(text);
+}
 
 async function generateReport(parent_id, moduleName, rankingData = []) {
-  const rawPath = path.join(__dirname, 'raw', parent_id, `${moduleName}.json`);
   const reportDir = path.join(__dirname, 'reports');
   const markdownPath = path.join(reportDir, `${parent_id}--${moduleName}.md`);
 
-  if (!fs.existsSync(rawPath)) {
-    console.warn(`⚠️ No raw data found for module ${moduleName}`);
+  let rows;
+  try {
+    rows = await fetchRawJsonFromSupabase(parent_id, moduleName);
+  } catch (err) {
+    console.warn(`⚠️ No raw data found for module ${moduleName}:`, err.message);
     return;
   }
 
-  const rows = JSON.parse(fs.readFileSync(rawPath, 'utf8'));
   const trimmedRows = rows.slice(0, 50);
   const prompt = loadModulePrompt(moduleName, trimmedRows, rankingData);
 
