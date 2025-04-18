@@ -14,7 +14,7 @@ const supabase = createClient(
  * @param {Object|Array} jsonData - Parsed JSON data to upload
  */
 async function uploadJsonToSupabase(bucket, parent_id, moduleName, jsonData) {
-  const remotePath = `${parent_id}/${moduleName}.json`;
+  const remotePath = `raw/${parent_id}/${moduleName}.json`;
   const content = JSON.stringify(jsonData, null, 2);
   const buffer = Buffer.from(content, 'utf-8');
 
