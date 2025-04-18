@@ -77,24 +77,46 @@ Then score this module:
 
 module.exports = { enhanceWithRankings };
 
-const raw = data.choices?.[0]?.message?.content;
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: REPORT_MODEL,
+        messages: [
+          { role: "system", content: "You are an SEO analyst enhancing modular reports." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.3
+      })
+    });
 
-if (!raw || typeof raw !== 'string') {
-  console.error(`❌ GPT did not return a usable markdown+score object for ${moduleName}`);
-  return null;
-}
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
 
-let extracted;
-try {
-  extracted = JSON.parse(raw);
-} catch (err) {
-  console.error(`❌ Failed to parse JSON for ${moduleName}:`, err.message);
-  return null;
-}
+    if (!raw || typeof raw !== 'string') {
+      console.error(`❌ GPT did not return a usable markdown+score object for ${moduleName}`);
+      return null;
+    }
 
-return {
-  ...extracted,
-  usage: data.usage
-};
+    let extracted;
+    try {
+      extracted = JSON.parse(raw);
+    } catch (err) {
+      console.error(`❌ Failed to parse JSON for ${moduleName}:`, err.message);
+      return null;
+    }
 
+    return {
+      ...extracted,
+      usage: data.usage
+    };
+
+  } catch (err) {
+    console.error(`❌ Error in enhanceWithRankings for ${moduleName}:`, err);
+    return null;
+  }
 
