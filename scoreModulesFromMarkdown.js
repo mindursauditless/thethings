@@ -1,126 +1,92 @@
+
 const fs = require('fs');
 const path = require('path');
-const fetch = require('node-fetch');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 const { compareScores } = require('./compareScores');
-require('dotenv').config();
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const REPORT_MODEL = process.env.REPORT_MODEL || 'gpt-3.5-turbo';
 
 async function scoreModulesFromMarkdown(parent_id) {
   const reportsDir = path.join(__dirname, 'reports');
-  const promptPath = path.join(__dirname, 'scoringprompt.md');
-  const systemPrompt = fs.readFileSync(promptPath, 'utf8');
+  const reportFiles = fs.readdirSync(reportsDir).filter(file =>
+    file.startsWith(parent_id) && file.endsWith('.md')
+  );
 
-  const files = fs.readdirSync(reportsDir).filter(f => f.startsWith(parent_id) && f.endsWith('.md'));
-  const allScores = {};
+  const scores = {};
+  const diffs = {};
+  const scoreHistoryFile = path.join(reportsDir, `${parent_id}_score_history.json`);
 
-  const parentFolder = path.join(reportsDir, parent_id);
-  if (!fs.existsSync(parentFolder)) fs.mkdirSync(parentFolder);
-
-  // Load previous score snapshot if it exists
-  const scoreHistoryPath = path.join(reportsDir, '_score_history.json');
-  let previousScores = null;
-
-  if (fs.existsSync(scoreHistoryPath)) {
-    const history = JSON.parse(fs.readFileSync(scoreHistoryPath, 'utf8'));
-    const prevEntry = history.find(entry => entry.parent_id !== parent_id);
-    previousScores = prevEntry?.scores ?? null;
-  }
-
-  for (const file of files) {
-    const filePath = path.join(reportsDir, file);
-    let content = fs.readFileSync(filePath, 'utf8');
-    const moduleName = file.split('--')[1].replace('.md', '');
-
-    // Remove previous score block if it exists
-    const scoreMarker = '## Final Module Scoring';
-    if (content.includes(scoreMarker)) {
-      const parts = content.split('\n---\n');
-      content = parts[0].trim(); // Keep only main report
-    }
-
-    const prompt = `
-${systemPrompt}
-
----
-
-Here is the full module report:
-
-\`\`\`markdown
-${content}
-\`\`\`
-
-Please return only the JSON object.
-`;
+  for (const file of reportFiles) {
+    const filepath = path.join(reportsDir, file);
+    const moduleName = file.replace(`${parent_id}--`, '').replace('.md', '');
 
     try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
+      const content = fs.readFileSync(filepath, 'utf8');
+
+      const scorePrompt = `
+You are an SEO scoring engine. Read the markdown report below and return a JSON object like:
+{
+  "score": 7.5,
+  "confidence": 0.85,
+  "priority": "High"
+}
+Only return JSON. No comments or explanations.
+
+Report:
+${content}
+`;
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
+          "Authorization": \`Bearer \${process.env.OPENAI_API_KEY}\`,
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: REPORT_MODEL,
-          messages: [
-            { role: 'system', content: 'You are an expert SEO auditor scoring modular reports.' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.3
+          model: process.env.REPORT_MODEL || 'gpt-3.5-turbo',
+          messages: [{ role: "user", content: scorePrompt }],
+          temperature: 0.2
         })
       });
 
-      const data = await res.json();
+      const data = await response.json();
       const raw = data.choices?.[0]?.message?.content;
+      if (!raw || raw.trim() === 'undefined') throw new Error("GPT returned undefined");
+
       const score = JSON.parse(raw);
+      scores[moduleName] = score;
 
-      allScores[moduleName] = score;
+      // Read previous score for diff tracking
+      const oldScoresPath = path.join(reportsDir, `${parent_id}_score_history.json`);
+      let oldScores = {};
+      if (fs.existsSync(oldScoresPath)) {
+        oldScores = JSON.parse(fs.readFileSync(oldScoresPath, 'utf8'));
+      }
 
-      const prevScore = previousScores?.[moduleName]?.score ?? null;
-      const change = prevScore !== null ? +(score.score - prevScore).toFixed(2) : null;
+      const delta = compareScores(oldScores[moduleName], score);
+      if (delta) diffs[moduleName] = delta;
 
-      const scoreBlock = `\n---\n## Final Module Scoring\n**Priority:** ${score.priority}\n\n**Confidence:** ${score.confidence}\n\n**Score:** ${score.score}/10\n` +
-                         (change !== null ? `**Change Since Last Audit:** ${change > 0 ? '+' : ''}${change}\n` : '');
+      // Inject score block into markdown
+      const updated = `${content.trim()}
 
-      const updated = `${content.trim()}\n${scoreBlock}`;
-      fs.writeFileSync(filePath, updated, 'utf8');
-      console.log(`✅ Scored and updated: ${file}`);
+---
+## Module Scoring
+**Priority:** ${score.priority}
+**Confidence:** ${score.confidence}
+**Score:** ${score.score}/10
+`;
+
+      fs.writeFileSync(filepath, updated, 'utf8');
+      console.log(`🧮 ${moduleName} scored: ${score.score}/10 (${delta ? 'Δ ' + delta : 'no previous'})`);
 
       await uploadMarkdownToSupabase(parent_id, moduleName);
     } catch (err) {
-      console.error(`❌ Failed to score ${file}:`, err.message || err);
+      console.error(`❌ Failed to score ${file}:`, err.message);
     }
   }
 
-  // Save latest score snapshot
-  const scoreJsonPath = path.join(parentFolder, 'scores.json');
-  fs.writeFileSync(scoreJsonPath, JSON.stringify(allScores, null, 2), 'utf8');
-  console.log(`📦 Saved module scores to: ${scoreJsonPath}`);
-
-  // Create and save diff object
-  const diff = compareScores(previousScores || {}, allScores);
-  const diffPath = path.join(parentFolder, 'score_diff.json');
-  fs.writeFileSync(diffPath, JSON.stringify(diff, null, 2), 'utf8');
-  console.log(`📊 Saved score_diff to: ${diffPath}`);
-
-  // Update score history
-  const timestamp = new Date().toISOString();
-  let historyData = [];
-
-  if (fs.existsSync(scoreHistoryPath)) {
-    historyData = JSON.parse(fs.readFileSync(scoreHistoryPath, 'utf8'));
-  }
-
-  historyData.push({
-    parent_id,
-    timestamp,
-    scores: allScores
-  });
-
-  fs.writeFileSync(scoreHistoryPath, JSON.stringify(historyData, null, 2), 'utf8');
-  console.log(`📈 Appended current scores to history`);
+  // Save score diff and current scores
+  fs.writeFileSync(path.join(reportsDir, `${parent_id}_score_diff.json`), JSON.stringify(diffs, null, 2));
+  fs.writeFileSync(path.join(reportsDir, `${parent_id}_score_history.json`), JSON.stringify(scores, null, 2));
+  console.log(`📦 Saved module scores to: ${reportsDir}/${parent_id}_score_history.json`);
 }
 
 module.exports = { scoreModulesFromMarkdown };
