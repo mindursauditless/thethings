@@ -1,6 +1,4 @@
 
-// 🔧 PATCHED server.js
-
 const express = require('express');
 const fetch = require('node-fetch');
 const fs = require('fs');
@@ -22,14 +20,23 @@ app.use((req, res, next) => {
 });
 
 app.get('/', (req, res) => {
+  console.log("👋 Root endpoint hit");
   res.send('✅ Server is up and running with Supabase fetch uploader and GPT audit');
 });
 
 app.post('/classify-csvs', async (req, res) => {
-  console.log("⚡️ classify-csvs triggered");
+  console.log("📥 classify-csvs triggered");
+
   res.status(200).json({ message: 'Received. Processing in background...' });
 
   try {
+    console.log("📦 Payload body:", req.body);
+
+    if (!req.body) {
+      console.error("❌ req.body is undefined");
+      return;
+    }
+
     const {
       Business_Name,
       Website_Link,
@@ -40,12 +47,10 @@ app.post('/classify-csvs', async (req, res) => {
       Parent_ID: parent_id
     } = req.body;
 
+    console.log("🧩 Parsed Zapier fields:", { Business_Name, Website_Link, Email, Name, Files, Rankings, parent_id });
+
     const thread_key = uuidv4();
     const logPrefix = `🧩 [Parent ${parent_id}]`;
-
-    console.log(`${logPrefix} Zapier Data:`, { Business_Name, Website_Link, Email, Name });
-    if (!Files) console.warn(`${logPrefix} ⚠️ No CSVs provided in Files`);
-    if (!Rankings) console.warn(`${logPrefix} ⚠️ No ranking data received`);
 
     console.time(`${logPrefix} ⏱️ Total classification time`);
 
@@ -67,12 +72,14 @@ app.post('/classify-csvs', async (req, res) => {
       };
     });
 
+    console.log(`${logPrefix} 📥 Starting prepareFilesForGPT...`);
     const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID, uploadedRankings);
     const { rankings, ...moduleMap } = moduleData;
 
     const actualModules = Object.keys(moduleMap).filter(key => moduleMap[key].length > 0);
     console.log(`${logPrefix} 📦 Modules with data:`, actualModules);
 
+    console.log(`${logPrefix} 🛠 Running module audits...`);
     await runModuleAudits(parent_id, actualModules, rankings);
 
     console.timeEnd(`${logPrefix} ⏱️ Total classification time`);
