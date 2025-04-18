@@ -11,8 +11,30 @@ require('dotenv').config();
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const CLASSIFY_ASSISTANT_ID = process.env.CLASSIFY_ASSISTANT_ID;
 
-const app = express(); // ✅ ← This is the missing line
+const app = express();
 app.use(express.json({ limit: '25mb' }));
+
+app.use((req, res, next) => {
+  console.log(`🛰️ Incoming ${req.method} ${req.url}`);
+  next();
+});
+
+app.get('/', (req, res) => {
+  console.log("👋 Root endpoint hit");
+  res.send('✅ Server is up and running with Supabase fetch uploader and GPT audit');
+});
+
+function generateMarkdownFromRows(moduleName, rows) {
+  const header = `# ${moduleName.replace(/_/g, ' ').toUpperCase()}\n\n`;
+  const body = rows.map((row, i) => {
+    const rowLines = Object.entries(row)
+      .map(([key, val]) => `**${key}**: ${val}`)
+      .join('\n');
+    return `### Row ${i + 1}\n${rowLines}\n`;
+  }).join('\n');
+
+  return header + body;
+}
 
 app.post('/classify-csvs', async (req, res) => {
   console.log("📥 classify-csvs triggered");
@@ -23,8 +45,6 @@ app.post('/classify-csvs', async (req, res) => {
       console.error("❌ Invalid or missing request body");
       return res.status(400).json({ error: 'Invalid request body' });
     }
-
-    console.log("📦 Full body received:", body);
 
     const Business_Name = body.Business_Name || null;
     const Website_Link = body.Website_Link || null;
@@ -80,13 +100,14 @@ app.post('/classify-csvs', async (req, res) => {
     const actualModules = Object.keys(moduleMap).filter(key => moduleMap[key].length > 0);
     console.log(`${logPrefix} 📦 Modules with data:`, actualModules);
 
-    // ✅ New: Upload to Supabase before running audits
+    // ✅ Upload to Supabase
     for (const moduleName of actualModules) {
       const rows = moduleMap[moduleName];
       console.log(`📤 Uploading module '${moduleName}' with ${rows.length} rows to Supabase...`);
 
       try {
-        await uploadMarkdownToSupabase(parent_id, moduleName, rows);
+        const markdown = generateMarkdownFromRows(moduleName, rows);
+        await uploadMarkdownToSupabase(parent_id, moduleName, markdown);
         console.log(`✅ Uploaded '${moduleName}' successfully`);
       } catch (uploadErr) {
         console.error(`❌ Failed to upload '${moduleName}':`, uploadErr.message || uploadErr);
@@ -113,4 +134,3 @@ app.post('/classify-csvs', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
