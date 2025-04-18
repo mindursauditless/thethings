@@ -67,36 +67,6 @@ Then score this module:
     const data = await response.json();
     const raw = data.choices?.[0]?.message?.content;
 
-    const extracted = JSON.parse(raw);
-    return extracted;
-  } catch (err) {
-    console.error(`❌ Error in enhanceWithRankings for ${moduleName}:`, err);
-    return null;
-  }
-}
-
-module.exports = { enhanceWithRankings };
-
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: REPORT_MODEL,
-        messages: [
-          { role: "system", content: "You are an SEO analyst enhancing modular reports." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.3
-      })
-    });
-
-    const data = await response.json();
-    const raw = data.choices?.[0]?.message?.content;
-
     if (!raw || typeof raw !== 'string') {
       console.error(`❌ GPT did not return a usable markdown+score object for ${moduleName}`);
       return null;
@@ -119,4 +89,6 @@ module.exports = { enhanceWithRankings };
     console.error(`❌ Error in enhanceWithRankings for ${moduleName}:`, err);
     return null;
   }
+}
 
+module.exports = { enhanceWithRankings };
