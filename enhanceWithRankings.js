@@ -3,6 +3,7 @@ require('dotenv').config();
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const REPORT_MODEL = process.env.REPORT_MODEL || 'gpt-3.5-turbo';
+const enhancementPrompt = fs.readFileSync(path.join(__dirname, 'enhanceprompt.md'), 'utf8');
 
 async function enhanceWithRankings({ moduleName, parent_id, rows, rankingData, reportMarkdown }) {
   if (!OPENAI_API_KEY) throw new Error("Missing OpenAI API key");
