@@ -76,3 +76,10 @@ Then score this module:
 }
 
 module.exports = { enhanceWithRankings };
+
+const extracted = JSON.parse(raw);
+return {
+  ...extracted,
+  usage: data.usage
+};
+
