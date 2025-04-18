@@ -25,16 +25,12 @@ app.get('/', (req, res) => {
 });
 
 app.post('/classify-csvs', async (req, res) => {
-  console.log("📥 classify-csvs triggered");
-
-  res.status(200).json({ message: 'Received. Processing in background...' });
-
   try {
-    console.log("📦 Payload body:", req.body);
+    console.log("📥 classify-csvs triggered");
 
     if (!req.body) {
       console.error("❌ req.body is undefined");
-      return;
+      return res.status(400).json({ error: 'Missing request body' });
     }
 
     const {
@@ -49,12 +45,14 @@ app.post('/classify-csvs', async (req, res) => {
 
     console.log("🧩 Parsed Zapier fields:", { Business_Name, Website_Link, Email, Name, Files, Rankings, parent_id });
 
+    res.status(200).json({ message: 'Received. Processing in background...' });
+
     const thread_key = uuidv4();
     const logPrefix = `🧩 [Parent ${parent_id}]`;
 
     console.time(`${logPrefix} ⏱️ Total classification time`);
 
-    const fileUrls = Files.split(',').map(url => url.trim()).filter(Boolean);
+    const fileUrls = (Files || '').split(',').map(url => url.trim()).filter(Boolean);
     const uploadedCsvs = fileUrls.map(url => {
       const parts = url.split('/');
       return {
@@ -63,7 +61,7 @@ app.post('/classify-csvs', async (req, res) => {
       };
     });
 
-    const rankingUrls = Rankings.split(',').map(url => url.trim()).filter(Boolean);
+    const rankingUrls = (Rankings || '').split(',').map(url => url.trim()).filter(Boolean);
     const uploadedRankings = rankingUrls.map(url => {
       const parts = url.split('/');
       return {
@@ -98,6 +96,7 @@ app.post('/classify-csvs', async (req, res) => {
     } else if (err instanceof Error) {
       console.error("❗️ Error details:", err.message);
     }
+    res.status(500).json({ error: 'Server crashed during classification.' });
   }
 });
 
