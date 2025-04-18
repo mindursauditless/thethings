@@ -35,6 +35,13 @@ async function generateReport(parent_id, moduleName, rankingData = []) {
   const trimmedRows = rows.slice(0, 50);
   const prompt = loadModulePrompt(moduleName, trimmedRows, rankingData);
 
+  // Sanity check and debug log for prompt
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    console.error("❌ Invalid prompt! Value:", prompt);
+    return;
+  }
+  console.log("📩 Prompt being sent to GPT:", prompt.slice(0, 500));
+
   let markdown;
   try {
     console.log("🧠 Fetch-based Assistant run for:", moduleName);
