@@ -111,7 +111,7 @@ app.post('/classify-csvs', async (req, res) => {
         const markdown = generateMarkdownFromRows(moduleName, rows);
 
         // Upload parsed rows to raw-inputs (as .json)
-        await uploadJsonToSupabase(, parent_id, moduleName, rows);
+        await uploadJsonToSupabase(parent_id, moduleName, rows);
         console.log(`✅ Uploaded raw JSON for '${moduleName}' to raw-inputs`);
 
         // Upload markdown report to reports/
