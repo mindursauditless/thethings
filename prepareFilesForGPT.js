@@ -1,5 +1,3 @@
-// prepareFilesForGPT.js
-
 const fetch = require('node-fetch');
 const { parse } = require('csv-parse/sync');
 
@@ -21,15 +19,9 @@ const modulesToIncludeRanking = [
   'service_area_pages'
 ];
 
-/**
- * Prepares multiple uploaded CSV files for GPT classification
- * @param {Array} uploadedCsvs - [{ filename, url }]
- * @returns {Promise<Object>} - keyed by module name with arrays of relevant rows
- */
 async function prepareFilesForGPT(uploadedCsvs = []) {
-  const moduleData = Object.fromEntries(
-    Object.keys(MODULE_KEYWORDS).map(key => [key, []])
-  );
+  const moduleData = Object.fromEntries(Object.keys(MODULE_KEYWORDS).map(key => [key, []]));
+  const allRows = [];
 
   for (const { filename, url } of uploadedCsvs) {
     try {
@@ -48,26 +40,45 @@ async function prepareFilesForGPT(uploadedCsvs = []) {
 
       for (const row of records) {
         const rowText = Object.values(row).join(' ').toLowerCase();
+        const annotatedRow = { ...row, source_file: filename };
+        allRows.push(annotatedRow);
+
+        let matched = false;
 
         for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
           if (keywords.some(k => rowText.includes(k))) {
-            moduleData[module].push({ ...row, source_file: filename });
+            moduleData[module].push(annotatedRow);
+            matched = true;
           }
         }
 
         if (isRankingFile) {
           for (const module of modulesToIncludeRanking) {
-            moduleData[module].push({ ...row, source_file: filename });
+            moduleData[module].push(annotatedRow);
           }
+        }
+
+        if (!matched && !isRankingFile) {
+          // Log unmatched rows if needed
+          // console.log(`🚫 Unmatched row in ${filename}:`, rowText.slice(0, 80));
         }
       }
 
+      console.log(`📄 Processed ${records.length} rows from ${filename}`);
     } catch (err) {
       console.error(`❌ Error processing ${filename}:`, err);
     }
   }
 
-  return moduleData;
+  const matchedModules = Object.entries(moduleData).filter(([_, rows]) => rows.length > 0).map(([key]) => key);
+  console.log("📊 Matched modules:", matchedModules);
+
+  return {
+    matchedModules,
+    rows: allRows,
+    rankings: uploadedCsvs,
+    ...moduleData
+  };
 }
 
 module.exports = { prepareFilesForGPT };
