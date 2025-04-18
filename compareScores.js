@@ -43,3 +43,5 @@ function compareScores(previous, current) {
     modules
   };
 }
+
+module.exports = { compareScores };
