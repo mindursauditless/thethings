@@ -25,26 +25,33 @@ app.get('/', (req, res) => {
 });
 
 app.post('/classify-csvs', async (req, res) => {
-  try {
-    console.log("📥 classify-csvs triggered");
+  console.log("📥 classify-csvs triggered");
 
-    if (!req.body) {
-      console.error("❌ req.body is undefined");
-      return res.status(400).json({ error: 'Missing request body' });
+  try {
+    const body = req.body;
+    if (!body || typeof body !== 'object') {
+      console.error("❌ Invalid or missing request body");
+      return res.status(400).json({ error: 'Invalid request body' });
     }
 
-    const {
-      Business_Name,
-      Website_Link,
-      Email,
-      Name,
-      Files = '',
-      Rankings = '',
-      Parent_ID: parent_id
-    } = req.body;
+    console.log("📦 Full body received:", body);
 
-    console.log("🧩 Parsed Zapier fields:", { Business_Name, Website_Link, Email, Name, Files, Rankings, parent_id });
+    const Business_Name = body.Business_Name || null;
+    const Website_Link = body.Website_Link || null;
+    const Email = body.Email || null;
+    const Name = body.Name || null;
+    const Files = body.Files || '';
+    const Rankings = body.Rankings || '';
+    const parent_id = body.Parent_ID;
 
+    if (!parent_id) {
+      console.warn("⚠️ No Parent_ID provided. Skipping processing.");
+      return res.status(400).json({ error: 'Missing Parent_ID' });
+    }
+
+    console.log("🧩 Parsed fields:", { Business_Name, Website_Link, Email, Name, Files, Rankings, parent_id });
+
+    // Send success response as late as possible
     res.status(200).json({ message: 'Received. Processing in background...' });
 
     const thread_key = uuidv4();
@@ -52,7 +59,7 @@ app.post('/classify-csvs', async (req, res) => {
 
     console.time(`${logPrefix} ⏱️ Total classification time`);
 
-    const fileUrls = (Files || '').split(',').map(url => url.trim()).filter(Boolean);
+    const fileUrls = typeof Files === 'string' ? Files.split(',').map(f => f.trim()).filter(Boolean) : [];
     const uploadedCsvs = fileUrls.map(url => {
       const parts = url.split('/');
       return {
@@ -61,7 +68,7 @@ app.post('/classify-csvs', async (req, res) => {
       };
     });
 
-    const rankingUrls = (Rankings || '').split(',').map(url => url.trim()).filter(Boolean);
+    const rankingUrls = typeof Rankings === 'string' ? Rankings.split(',').map(f => f.trim()).filter(Boolean) : [];
     const uploadedRankings = rankingUrls.map(url => {
       const parts = url.split('/');
       return {
@@ -70,9 +77,12 @@ app.post('/classify-csvs', async (req, res) => {
       };
     });
 
-    console.log(`${logPrefix} 📥 Starting prepareFilesForGPT...`);
-    const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID, uploadedRankings);
+    console.log(`${logPrefix} 📥 Starting prepareFilesForGPT with`, {
+      uploadedCsvs,
+      uploadedRankings
+    });
 
+    const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID, uploadedRankings);
     const {
       rankings,
       rows,
@@ -88,6 +98,7 @@ app.post('/classify-csvs', async (req, res) => {
 
     console.timeEnd(`${logPrefix} ⏱️ Total classification time`);
     console.log(`${logPrefix} ✅ Classification and audit complete`);
+
   } catch (err) {
     console.error("🔥 classify-csvs error:", err);
     if (err.response && typeof err.response.text === 'function') {
@@ -96,7 +107,7 @@ app.post('/classify-csvs', async (req, res) => {
     } else if (err instanceof Error) {
       console.error("❗️ Error details:", err.message);
     }
-    res.status(500).json({ error: 'Server crashed during classification.' });
+    res.status(500).json({ error: 'Server error during classification' });
   }
 });
 
