@@ -2,10 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 const loadModulePrompt = require('./moduleprompt');
-const { createClient } = require('openai');
+const OpenAI = require('openai');
 require('dotenv').config();
 
-const openai = new createClient(process.env.OPENAI_API_KEY);
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
 const REPORT_MODEL = process.env.REPORT_MODEL;
 
 async function generateReport(parent_id, moduleName, rankingData = []) {
