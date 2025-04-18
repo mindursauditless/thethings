@@ -74,7 +74,13 @@ app.post('/classify-csvs', async (req, res) => {
 
     console.log(`${logPrefix} 📥 Starting prepareFilesForGPT...`);
     const moduleData = await prepareFilesForGPT(uploadedCsvs, CLASSIFY_ASSISTANT_ID, uploadedRankings);
-    const { rankings, ...moduleMap } = moduleData;
+
+    const {
+      rankings,
+      rows,
+      matchedModules,
+      ...moduleMap
+    } = moduleData;
 
     const actualModules = Object.keys(moduleMap).filter(key => moduleMap[key].length > 0);
     console.log(`${logPrefix} 📦 Modules with data:`, actualModules);
