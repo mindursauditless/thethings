@@ -2,18 +2,29 @@ const fs = require('fs');
 const path = require('path');
 
 function loadModulePrompt(moduleName, rows = [], rankings = []) {
-  const frameworkPath = path.join(__dirname, 'prompts', moduleName, 'framework.md');
-  const instructionsPath = path.join(__dirname, 'prompts', 'universal', 'instructions.md');
-  const deliverablesPath = path.join(__dirname, 'prompts', 'universal', 'deliverables.md');
+  const basePath = path.join(__dirname, 'modules', moduleName);
+  const universalPath = path.join(__dirname, 'modules', 'universal_os.md');
+
+  const frameworkPath = path.join(basePath, 'framework.md');
+  const instructionsPath = path.join(basePath, 'instructions.md');
+  const deliverablePath = path.join(basePath, 'deliverable.md');
 
   console.log(`🧠 Assembling prompt for ${moduleName}`);
-  console.log(`📁 Using framework path: ${frameworkPath}`);
-  console.log(`📁 Using instructions path: ${instructionsPath}`);
-  console.log(`📁 Using deliverables path: ${deliverablesPath}`);
+  console.log(`📁 universal: ${universalPath}`);
+  console.log(`📁 framework: ${frameworkPath}`);
+  console.log(`📁 instructions: ${instructionsPath}`);
+  console.log(`📁 deliverable: ${deliverablePath}`);
 
+  let universal = '';
   let framework = '';
   let instructions = '';
-  let deliverables = '';
+  let deliverable = '';
+
+  try {
+    universal = fs.readFileSync(universalPath, 'utf8');
+  } catch {
+    console.warn("⚠️ Missing universal_os.md");
+  }
 
   try {
     framework = fs.readFileSync(frameworkPath, 'utf8');
@@ -24,36 +35,51 @@ function loadModulePrompt(moduleName, rows = [], rankings = []) {
   try {
     instructions = fs.readFileSync(instructionsPath, 'utf8');
   } catch {
-    console.warn("⚠️ Missing universal instructions.md");
+    console.warn(`⚠️ Missing instructions.md for ${moduleName}`);
   }
 
   try {
-    deliverables = fs.readFileSync(deliverablesPath, 'utf8');
+    deliverable = fs.readFileSync(deliverablePath, 'utf8');
   } catch {
-    console.warn("⚠️ Missing universal deliverables.md");
+    console.warn(`⚠️ Missing deliverable.md for ${moduleName}`);
   }
 
-  const dataPreview = rows.slice(0, 10);
+  const csvRows = JSON.stringify(rows.slice(0, 50), null, 2);
   const prompt = `
+${universal}
+
+---
+
+## Strategic Framework
 ${framework}
 
+---
+
+## Instructions
 ${instructions}
 
-${deliverables}
+---
 
-### Example Data:
+## Deliverable Format
+${deliverable}
+
+---
+
+### Raw CSV rows:
 \`\`\`json
-${JSON.stringify(dataPreview, null, 2)}
+${csvRows}
 \`\`\`
 
-${rankings?.length > 0 ? `### Related Ranking Data:
+${rankings.length ? `
+---
+
+### Related Ranking Data:
 \`\`\`json
-${JSON.stringify(rankings.slice(0, 10), null, 2)}
+${JSON.stringify(rankings.slice(0, 50), null, 2)}
 \`\`\`` : ''}
 `.trim();
 
-  console.log("📩 Final Prompt Start >>>\n", prompt.slice(0, 800));
-
+  console.log("📩 Final Prompt Preview >>>\n", prompt.slice(0, 1000));
   return prompt;
 }
 
