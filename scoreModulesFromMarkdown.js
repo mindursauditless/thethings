@@ -1,4 +1,3 @@
-
 const fs = require('fs');
 const path = require('path');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
@@ -54,7 +53,6 @@ ${content}
       const score = JSON.parse(raw);
       scores[moduleName] = score;
 
-      // Read previous score for diff tracking
       const oldScoresPath = path.join(reportsDir, `${parent_id}_score_history.json`);
       let oldScores = {};
       if (fs.existsSync(oldScoresPath)) {
@@ -64,7 +62,6 @@ ${content}
       const delta = compareScores(oldScores[moduleName], score);
       if (delta) diffs[moduleName] = delta;
 
-      // Inject score block into markdown
       const updated = `${content.trim()}
 
 ---
@@ -77,13 +74,12 @@ ${content}
       fs.writeFileSync(filepath, updated, 'utf8');
       console.log(`🧮 ${moduleName} scored: ${score.score}/10 (${delta ? 'Δ ' + delta : 'no previous'})`);
 
-      await uploadMarkdownToSupabase(parent_id, moduleName);
+      await uploadMarkdownToSupabase(parent_id, moduleName, updated);
     } catch (err) {
       console.error(`❌ Failed to score ${file}:`, err.message);
     }
   }
 
-  // Save score diff and current scores
   fs.writeFileSync(path.join(reportsDir, `${parent_id}_score_diff.json`), JSON.stringify(diffs, null, 2));
   fs.writeFileSync(path.join(reportsDir, `${parent_id}_score_history.json`), JSON.stringify(scores, null, 2));
   console.log(`📦 Saved module scores to: ${reportsDir}/${parent_id}_score_history.json`);
