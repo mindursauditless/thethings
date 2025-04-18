@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
-const { loadModulePrompt } = require('./moduleprompt');
+const loadModulePrompt = require('./moduleprompt');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 const { enhanceWithRankings } = require('./enhanceWithRankings');
 require('dotenv').config();
