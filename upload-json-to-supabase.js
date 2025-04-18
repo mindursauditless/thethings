@@ -6,26 +6,34 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
+// Hardcoded bucket for clarity and safety
+const BUCKET = 'raw-inputs';
+
 /**
- * Uploads JSON data to the specified Supabase bucket
- * @param {string} bucket - Bucket name (e.g. 'raw-inputs')
+ * Uploads JSON data to the raw-inputs/raw/{parent_id}/{module}.json path
  * @param {string} parent_id - ID used to group files
  * @param {string} moduleName - Module name to be used in filename
  * @param {Object|Array} jsonData - Parsed JSON data to upload
  */
-async function uploadJsonToSupabase(bucket, parent_id, moduleName, jsonData) {
+async function uploadJsonToSupabase(parent_id, moduleName, jsonData) {
   const remotePath = `raw/${parent_id}/${moduleName}.json`;
   const content = JSON.stringify(jsonData, null, 2);
   const buffer = Buffer.from(content, 'utf-8');
 
+  console.log(`📤 Uploading to ${BUCKET}/${remotePath} (upsert: true)`);
+
   const { data, error } = await supabase.storage
-    .from(bucket)
+    .from(BUCKET)
     .upload(remotePath, buffer, {
       contentType: 'application/json',
       upsert: true
     });
 
-  if (error) throw error;
+  if (error) {
+    console.error(`❌ Supabase upload error (${BUCKET}/${remotePath}):`, error.message);
+    throw error;
+  }
+
   return data;
 }
 
