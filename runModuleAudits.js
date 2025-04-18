@@ -1,7 +1,9 @@
+
+// 🔧 PATCHED runModuleAudits.js
+
 const fs = require('fs');
 const path = require('path');
 const { generateReport } = require('./generate-report');
-const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
 const { scoreModulesFromMarkdown } = require('./scoreModulesFromMarkdown');
 const { generateScoreSummary } = require('./generateScoreSummary');
 const { runFinalReview } = require('./runFinalReview');
@@ -27,31 +29,34 @@ async function runModuleAudits(parent_id, modules = moduleNames, rankingData = [
   for (const moduleName of modules) {
     try {
       console.log(`📊 Generating module report: ${moduleName}`);
-
-      const content = await generateReport(parent_id, moduleName, rankingData);
-
-      if (!content) {
-        console.error(`❌ GPT returned no content for ${moduleName}`);
-        continue;
-      }
-
-      const reportsDir = path.join(__dirname, 'reports');
-      if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir);
-
-      const filePath = path.join(reportsDir, `${parent_id}--${moduleName}.md`);
-      fs.writeFileSync(filePath, content, 'utf8');
-      console.log(`✅ Saved report: /reports/${parent_id}--${moduleName}.md`);
-
-      await uploadMarkdownToSupabase(parent_id, moduleName);
+      await generateReport(parent_id, moduleName, rankingData);
     } catch (err) {
       console.error(`❌ Error generating module report for ${moduleName}:`, err);
     }
   }
 
-  // 📈 Post-processing pipeline
-  await scoreModulesFromMarkdown(parent_id);
-  await generateScoreSummary(parent_id);
-  await runFinalReview(parent_id, rankingData);
+  try {
+    console.log(`🧮 Scoring reports...`);
+    await scoreModulesFromMarkdown(parent_id);
+  } catch (err) {
+    console.error(`❌ Failed during scoring:`, err);
+  }
+
+  try {
+    console.log(`📊 Generating score summary...`);
+    await generateScoreSummary(parent_id);
+  } catch (err) {
+    console.error(`❌ Failed during score summary:`, err);
+  }
+
+  try {
+    console.log(`🧠 Running GPT-4o final review...`);
+    await runFinalReview(parent_id, rankingData);
+  } catch (err) {
+    console.error(`❌ Failed during final review:`, err);
+  }
+
+  console.log(`✅ All module audits complete for ${parent_id}`);
 }
 
 module.exports = { runModuleAudits };
