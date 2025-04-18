@@ -16,7 +16,8 @@ app.get('/', (req, res) => {
 });
 
 app.post('/classify-csvs', async (req, res) => {
-  console.log("⚡️ classify-csvs triggered");
+  console.log("📥 Incoming POST /classify-csvs");
+  console.log("➡️ Payload keys:", Object.keys(req.body));
 
   res.status(200).json({ message: 'Received. Processing in background...' });
 
@@ -71,13 +72,17 @@ app.post('/classify-csvs', async (req, res) => {
       try {
         await uploadJsonToSupabase(parent_id, moduleName, rows);
         console.log(`✅ Uploaded raw JSON for '${moduleName}' to raw-inputs`);
-        // GPT markdown generation happens in Step 3 (runModuleAudits)
       } catch (uploadErr) {
         console.error(`❌ Failed to upload '${moduleName}':`, uploadErr.message);
       }
     }
 
-    console.log(`${logPrefix} 🛠 Running module audits...`);
+    // 🔍 Added trace log to confirm what's passed to runModuleAudits
+    console.log("🧠 Calling runModuleAudits with:");
+    console.log("parent_id:", parent_id);
+    console.log("modules:", actualModules);
+    console.log("ranking count:", rankings?.length || 0);
+
     await runModuleAudits(parent_id, actualModules, rankings);
 
     console.timeEnd(`${logPrefix} ⏱️ Total classification time`);
