@@ -34,7 +34,6 @@ async function generateModulePage(thread_id, moduleName) {
 
     const prompt = loadModulePrompt(moduleName, rows);
 
-    // Split long text into smaller chunks
     const thread = await openai.beta.threads.create();
     console.log(`🧵 Created thread: ${thread.id}`);
 
@@ -82,7 +81,7 @@ async function generateModulePage(thread_id, moduleName) {
     console.log(`✅ Saved report: /reports/${thread_id}--${moduleName}.md`);
 
     console.log(`📤 Attempting upload for ${thread_id}--${moduleName}.md`);
-    const url = await uploadMarkdownToSupabase(thread_id, moduleName);
+    const url = await uploadMarkdownToSupabase(thread_id, moduleName, gptContent);
 
     if (url) {
       console.log(`🔗 Supabase URL: ${url}`);
