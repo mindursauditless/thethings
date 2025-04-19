@@ -2,7 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
 const { uploadJsonToSupabase } = require('./upload-json-to-supabase');
-uploadedCsvs = uploadedCsvs.filter(f => f && f.filename && f.url);
 
 function parseCsv(csvString, sourceFile) {
   const records = parse(csvString, {
@@ -31,7 +30,7 @@ function classifyCsv(filename) {
 }
 
 async function prepareFilesForGPT(parent_id, uploadedCsvs = [], uploadedRankings = []) {
-  // Sanitize input files before loop
+  // ✅ Filter out broken or malformed inputs
   uploadedCsvs = uploadedCsvs.filter(f => f && f.filename && f.url);
 
   const moduleData = {};
@@ -94,6 +93,5 @@ async function prepareFilesForGPT(parent_id, uploadedCsvs = [], uploadedRankings
     ...moduleData
   };
 }
-
 
 module.exports = { prepareFilesForGPT };
