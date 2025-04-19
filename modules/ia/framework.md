@@ -2,7 +2,6 @@
 # Framework for Information Architecture Module
 
 ## Strategy Directives
-- Only recommend changes when there's evidence that important pages are buried, missing from navigation, or inaccessible from key paths.
 - Focus on improving access to conversion-driving pages: Homepage, Service Pages, and Location Pages.
 - Analyze whether the site structure supports intuitive discovery: are important pages accessible in 1–2 clicks?
 - Ensure page paths are clean, keyword-aligned, and consistent with naming conventions.
@@ -32,9 +31,5 @@ Only include if the current structure is disorganized or non-standard.
 | Category Landing | /services                     | Needed for internal link structure  | n/a                              |
 ```
 
-## Output Format
-1. Summary (why the issue matters)
-2. Affected URLs or Paths
-3. Action Plan (2–5 steps)
-4. Tools/Templates (include table **only** if structure is flawed)
-5. Validation Notes (e.g., check GSC for orphaned high-impression pages)
+Add templates to the templates/tools section of the report markdown doc
+
