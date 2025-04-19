@@ -1,5 +1,3 @@
-## 2. **Module 1: Indexing & Crawling**
-
 # Module 1: Indexing & Crawling
 
 ## Purpose
