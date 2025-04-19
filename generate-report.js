@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
 const { uploadMarkdownToSupabase } = require('./upload-markdown-to-supabase');
-const loadModulePrompt = require('./moduleprompt');
+const { loadModulePrompt } = require('./moduleprompt');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
