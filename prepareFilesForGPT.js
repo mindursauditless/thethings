@@ -4,14 +4,25 @@ const { parse } = require('csv-parse/sync');
 const { uploadJsonToSupabase } = require('./upload-json-to-supabase');
 
 function parseCsv(csvString, sourceFile) {
-  const records = parse(csvString, {
-    columns: true,
-    skip_empty_lines: true
-  });
-  return records.map(row => ({
-    ...row,
-    source_file: sourceFile
-  }));
+  try {
+    const records = parse(csvString, {
+      columns: true,
+      skip_empty_lines: true,
+      relax_column_count: true,
+      on_record: (record, { lines }) => {
+        const valid = Object.values(record).filter(Boolean).length > 1;
+        if (!valid) {
+          console.warn(`⚠️ Skipping invalid record on line ${lines} from ${sourceFile}`);
+          return null;
+        }
+        return { ...record, source_file: sourceFile };
+      }
+    });
+    return records;
+  } catch (err) {
+    console.error(`❌ CSV parse error in ${sourceFile}:`, err.message);
+    return [];
+  }
 }
 
 function classifyCsv(filename) {
@@ -30,7 +41,6 @@ function classifyCsv(filename) {
 }
 
 async function prepareFilesForGPT(parent_id, uploadedCsvs = [], uploadedRankings = []) {
-  // ✅ Filter out broken or malformed inputs
   uploadedCsvs = uploadedCsvs.filter(f => f && f.filename && f.url);
 
   const moduleData = {};
