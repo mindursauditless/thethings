@@ -1,82 +1,97 @@
-const fetch = require('node-fetch');
+const fs = require('fs');
+const path = require('path');
 const { parse } = require('csv-parse/sync');
+const { uploadJsonToSupabase } = require('./upload-json-to-supabase');
 
-const MODULE_KEYWORDS = {
-  schema: ["schema", "structured data", "markup", "json-ld"],
-  internal_links: ["internal link", "internal anchor", "link depth", "links", "orphan", "301"],
-  onsite: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta"],
-  content_redundancy: ["duplicate content", "low word count", "thin content", "similar", "unique"],
-  content_quality: ["duplicate content", "low word count", "thin content", "similar", "unique"],
-  indexing: ["mobile", "4xx", "5xx", "sitemap", "crawl", "index", "301", "broken", "blocked", "canonical", "noindex", "orphan", "robots", "redirect"],
-  information_architecture: ["internal link", "internal anchor", "link depth", "links", "orphan", "301", "mobile", "4xx", "5xx", "sitemap", "crawl", "index", "canonical", "noindex", "robots", "redirect"],
-  gbp: ["reviews", "category", "address"],
-  service_area_pages: ["title tag", "title", "duplicate title", "h1", "h2", "description", "meta", "internal link", "internal anchor", "link depth", "links", "orphan", "301", "crawl", "index", "broken", "blocked", "canonical", "noindex", "robots", "redirect"]
-};
+function parseCsv(csvString, sourceFile) {
+  const records = parse(csvString, {
+    columns: true,
+    skip_empty_lines: true
+  });
+  return records.map(row => ({
+    ...row,
+    source_file: sourceFile
+  }));
+}
 
-const modulesToIncludeRanking = [
-  'content_quality',
-  'information_architecture',
-  'service_area_pages'
-];
+function classifyCsv(filename) {
+  const name = filename.toLowerCase();
+  if (name.includes('structured_data')) return 'schema';
+  if (name.includes('internal_links')) return 'internal_links';
+  if (name.includes('onsite')) return 'onsite';
+  if (name.includes('duplicate')) return 'content_redundancy';
+  if (name.includes('quality')) return 'content_quality';
+  if (name.includes('index')) return 'indexing';
+  if (name.includes('architecture')) return 'information_architecture';
+  if (name.includes('gbp')) return 'gbp';
+  if (name.includes('sap') || name.includes('service_area')) return 'service_area_pages';
+  if (name.includes('positions') || name.includes('rankings')) return 'ranking';
+  return null;
+}
 
-async function prepareFilesForGPT(uploadedCsvs = []) {
-  const moduleData = Object.fromEntries(Object.keys(MODULE_KEYWORDS).map(key => [key, []]));
+async function prepareFilesForGPT(parent_id, uploadedCsvs = [], uploadedRankings = []) {
+  const moduleData = {};
   const allRows = [];
+  const matchedModules = new Set();
+  const blogPages = [];
 
-  for (const { filename, url } of uploadedCsvs) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Failed to download ${filename}`);
+  for (const file of uploadedCsvs) {
+    const moduleName = classifyCsv(file.filename);
 
-      const csvText = await res.text();
-      const records = parse(csvText, {
-        columns: true,
-        skip_empty_lines: true,
-        relax_column_count: true
-      });
+    if (!moduleName) {
+      console.warn(`❌ Skipping file: ${file.filename}`);
+      continue;
+    }
 
-      const lowerFilename = filename.toLowerCase();
-      const isRankingFile = lowerFilename.includes('ranking') || lowerFilename.includes('positions');
+    if (moduleName === 'ranking') {
+      console.log(`⚠️ Skipping ${file.filename} – looks like ranking file`);
+      continue;
+    }
 
-      for (const row of records) {
-        const rowText = Object.values(row).join(' ').toLowerCase();
-        const annotatedRow = { ...row, source_file: filename };
-        allRows.push(annotatedRow);
+    const res = await fetch(file.url);
+    const csvText = await res.text();
+    const rows = parseCsv(csvText, file.filename);
 
-        let matched = false;
+    console.log(`📄 Processed ${rows.length} rows from ${file.filename}`);
+    allRows.push(...rows);
 
-        for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
-          if (keywords.some(k => rowText.includes(k))) {
-            moduleData[module].push(annotatedRow);
-            matched = true;
-          }
-        }
+    for (const row of rows) {
+      const isBlog = row?.url?.includes('/blog/') || row?.page_type === 'blog';
 
-        if (isRankingFile) {
-          for (const module of modulesToIncludeRanking) {
-            moduleData[module].push(annotatedRow);
-          }
-        }
+      // Save for separate blog.json file
+      if (isBlog) blogPages.push(row);
 
-        if (!matched && !isRankingFile) {
-          // Log unmatched rows if needed
-          // console.log(`🚫 Unmatched row in ${filename}:`, rowText.slice(0, 80));
-        }
+      // Route blog pages only to 'indexing' and 'schema'
+      if (isBlog && !['indexing', 'schema'].includes(moduleName)) {
+        continue;
       }
 
-      console.log(`📄 Processed ${records.length} rows from ${filename}`);
-    } catch (err) {
-      console.error(`❌ Error processing ${filename}:`, err);
+      if (!moduleData[moduleName]) {
+        moduleData[moduleName] = [];
+      }
+
+      moduleData[moduleName].push(row);
+      matchedModules.add(moduleName);
     }
   }
 
-  const matchedModules = Object.entries(moduleData).filter(([_, rows]) => rows.length > 0).map(([key]) => key);
-  console.log("📊 Matched modules:", matchedModules);
+  // Upload parsed JSON rows for each module
+  for (const [mod, rows] of Object.entries(moduleData)) {
+    console.log(`📤 Uploading module '${mod}' with ${rows.length} rows to Supabase...`);
+    await uploadJsonToSupabase('raw-inputs', parent_id, mod, rows);
+  }
+
+  // Upload blogPages separately
+  if (blogPages.length) {
+    const topBlogs = blogPages.slice(0, 100); // limit to 100
+    console.log(`📤 Uploading blogs.json with ${topBlogs.length} blog pages...`);
+    await uploadJsonToSupabase('raw-inputs', parent_id, 'blogs', topBlogs);
+  }
 
   return {
-    matchedModules,
+    matchedModules: Array.from(matchedModules),
     rows: allRows,
-    rankings: uploadedCsvs,
+    rankings: uploadedRankings,
     ...moduleData
   };
 }
