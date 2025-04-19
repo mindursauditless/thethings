@@ -2,17 +2,20 @@ const express = require('express');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
+
 const { prepareFilesForGPT } = require('./prepareFilesForGPT');
 const { runModuleAudits } = require('./runModuleAudits');
 const { uploadJsonToSupabase } = require('./upload-json-to-supabase');
 const { v4: uuidv4 } = require('uuid');
-require('dotenv').config();
 
 const app = express();
 app.use(express.json({ limit: '25mb' }));
 
+const PORT = process.env.PORT || 10000;
+
 app.get('/', (req, res) => {
-  res.send('✅ Server is up and running with Supabase fetch uploader and GPT audit');
+  res.send('✅ Server is up and running with Supabase uploader and GPT audit!');
 });
 
 app.post('/classify-csvs', async (req, res) => {
@@ -42,16 +45,18 @@ app.post('/classify-csvs', async (req, res) => {
 
     console.time(`${logPrefix} ⏱️ Total classification time`);
 
-    const fileUrls = Files.split(',').map(f => f.trim()).filter(Boolean);
-    const uploadedCsvs = fileUrls.map(url => ({
+    // ✅ Convert to arrays if stringified
+    const fileList = Array.isArray(Files) ? Files : Files.split(',').filter(Boolean);
+    const rankingList = Array.isArray(Rankings) ? Rankings : Rankings.split(',').filter(Boolean);
+
+    const uploadedCsvs = fileList.map(url => ({
       filename: decodeURIComponent(url.split('/').pop()),
-      url
+      url: url.trim()
     }));
 
-    const rankingUrls = Rankings.split(',').map(f => f.trim()).filter(Boolean);
-    const uploadedRankings = rankingUrls.map(url => ({
+    const uploadedRankings = rankingList.map(url => ({
       filename: decodeURIComponent(url.split('/').pop()),
-      url
+      url: url.trim()
     }));
 
     console.log(`${logPrefix} 📥 Starting prepareFilesForGPT with`, {
@@ -59,9 +64,9 @@ app.post('/classify-csvs', async (req, res) => {
       uploadedRankings
     });
 
-    const moduleData = await prepareFilesForGPT(uploadedCsvs, process.env.CLASSIFY_ASSISTANT_ID, uploadedRankings);
+    const moduleData = await prepareFilesForGPT(parent_id, uploadedCsvs, uploadedRankings);
     const { rankings, matchedModules, ...moduleMap } = moduleData;
-    
+
     const actualModules = Object.keys(moduleMap).filter(
       key => key !== 'rows' && moduleMap[key].length > 0
     );
@@ -79,7 +84,6 @@ app.post('/classify-csvs', async (req, res) => {
       }
     }
 
-    // 🔍 Added trace log to confirm what's passed to runModuleAudits
     console.log("🧠 Calling runModuleAudits with:");
     console.log("parent_id:", parent_id);
     console.log("modules:", actualModules);
@@ -91,10 +95,10 @@ app.post('/classify-csvs', async (req, res) => {
     console.log(`${logPrefix} ✅ Classification and audit complete`);
 
   } catch (err) {
-    console.error("🔥 classify-csvs error:", err);
-    res.status(500).json({ error: 'Server error during classification' });
+    console.error("🔥 classify-csvs error:", err); // Do not call res.json here
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
