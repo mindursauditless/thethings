@@ -15,11 +15,7 @@ Identify content overlap, intent collisions, and page bloat that confuse users a
 | Thin clones                         | Check uniqueness                   | Flag low-value                         |
 | Index status of duplicate pages     | GSC or `site:` check               | Suggest merge/redirect/rewrite         |
 
-## OS Tone
-- “Not duplicating in Copyscape doesn’t mean it’s not cannibalizing your own site.”
-- “Two pages on the same keyword ≠ double coverage; often zero traction.”
-
-## MAL Crossover
+## CrossoverIssues
 - **Indexing & Crawling**: Wrong version indexed → canonical or consolidate.
 - **Content Quality**: Two weak pages on same topic → merge into one strong asset.
 - **IA**: Redundant nav links → IA cleanup.
@@ -36,7 +32,3 @@ Identify content overlap, intent collisions, and page bloat that confuse users a
   - **Response**: 📌 Must Act, 🧠 Strategic Fix → “They’re weak duplicates. Merge them.”
 - **Finding**: 12 blog posts on “how to maintain HVAC,” all similar.
   - **Response**: 🔍 Validate, 🧠 Strategic Fix → “Likely filler. Combine or differentiate.”
-
-> Always check performance data before removing/merging.
-
-.d
