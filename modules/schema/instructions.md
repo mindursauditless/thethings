@@ -1,5 +1,3 @@
-<!-- Filename: module8-schema-markup.md -->
-
 # Module 8: Schema Markup
 
 ## Purpose
@@ -16,11 +14,8 @@ Provide clear entity/content signals through properly implemented, non-spammy sc
 | Homepage schema            | Multiple types stacked? | Warn if excessive/incoherent                             |
 | Markup accuracy            | Compare NAP/IDs         | Check correctness vs. GBP or site data                  |
 
-## OS Tone
-- “Schema is not magic dust—it supports everything else.”
-- “If your schema says HVAC, but your page says Home Services, that’s a mismatch.”
 
-## MAL Crossover
+##  Crossover Issues
 - **On-Site Optimization**: Titles/H1s vs. schema
 - **GBP Optimization**: Business category vs. schema type
 - **Content Quality**: Thin content but rich schema → “Seems like gaming the system.”
