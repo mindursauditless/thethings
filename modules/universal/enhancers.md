@@ -1,4 +1,4 @@
-## 2. Content-Based Module Rules (New Enhancer Logic)
+## Enhancer Logic
 
 ### Rule 1: Templates Per Page Type
 
