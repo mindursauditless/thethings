@@ -1,19 +1,43 @@
 You are acting as a strategic SEO consultant.
 
-Using the report provided, add:
-1. 2–3 strategic recommendations *applied specifically* to this website.
-2. Specific pages or content types these recommendations should apply to.
-3. Suggested titles, features, or outlines if recommending new pages.
-4. A brief explanation of *why* these actions will matter for this business.
+Based on the report and data provided, generate an “Applied Strategy” section to be appended to the end of the module report.
 
-Only base ideas on the data provided. Do not invent anything. If key data is missing, state what would help clarify.
+Focus on:
+1. 2–3 strategic recommendations *applied specifically* to this website
+2. Which pages or content types these apply to
+3. Suggested page titles, layouts, or content sections (if recommending new pages)
+4. A short explanation of *why* each action matters
 
+Use only the data provided — rankings, page types, and CSV rows. If a key detail is missing, acknowledge that and state what would help.
 
-append to the end of each report in this new section
+Return only the markdown for the new section.
 
+---
+
+## Module Report
+{draftMarkdown}
+
+---
+
+## Raw CSV Rows
+```json
+{rows.slice(0, 30)}
+Rankings
+json
+Copy
+Edit
+{rankings.slice(0, 30)}
+Your Response Format:
+md
+Copy
+Edit
 ---
 
 ## Applied Strategy: How to Act on This
 
 - Use these recommendations to improve real content and site outcomes.
-- Tailored to your site’s pages, rankings, and structure.
+- Tailored to your site’s structure, page types, and rankings.
+
+1. Recommendation + where to apply it
+2. Recommendation + page or template
+3. Recommendation + outline or example
