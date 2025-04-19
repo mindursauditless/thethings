@@ -15,7 +15,7 @@ function loadIfExists(filepath) {
 /**
  * Builds a full GPT prompt for the given module
  */
-function loadModulePrompt(moduleName, rows = [], rankings = []) {
+function loadModulePrompt(moduleName, rows = [], rankings = [], blogs = []) {
   const basePath = path.join(__dirname, 'modules', moduleName);
   const universalPath = path.join(__dirname, 'modules', 'universal');
 
@@ -30,6 +30,7 @@ function loadModulePrompt(moduleName, rows = [], rankings = []) {
 
   const rowsJSON = JSON.stringify(rows.slice(0, 50), null, 2);
   const rankingsJSON = rankings.length ? JSON.stringify(rankings.slice(0, 50), null, 2) : '';
+  const blogsJSON = blogs.length ? JSON.stringify(blogs.slice(0, 50), null, 2) : '';
 
   const parts = [
     `## Instructions\n${instructions}`,
@@ -40,7 +41,10 @@ function loadModulePrompt(moduleName, rows = [], rankings = []) {
     appliedStrategy ? `\n---\n\n## Applied Strategy Guidance\n${appliedStrategy}` : '',
     logic ? `\n---\n\n## Logic Flags\n${logic}` : '',
     `\n---\n\n## Raw CSV Rows\n\n\`\`\`json\n${rowsJSON}\n\`\`\``,
-    rankings.length ? `\n---\n\n## Related Ranking Data\n\n\`\`\`json\n${rankingsJSON}\n\`\`\`` : ''
+    rankings.length ? `\n---\n\n## Related Ranking Data\n\n\`\`\`json\n${rankingsJSON}\n\`\`\`` : '',
+    moduleName === 'internal_links' && blogs.length
+      ? `\n---\n\n## Blog Pages (for link sourcing)\n\n\`\`\`json\n${blogsJSON}\n\`\`\`` 
+      : ''
   ];
 
   return parts.filter(Boolean).join('\n\n').trim();
