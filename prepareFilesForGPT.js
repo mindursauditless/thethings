@@ -31,6 +31,9 @@ function classifyCsv(filename) {
 }
 
 async function prepareFilesForGPT(parent_id, uploadedCsvs = [], uploadedRankings = []) {
+  // Sanitize input files before loop
+  uploadedCsvs = uploadedCsvs.filter(f => f && f.filename && f.url);
+
   const moduleData = {};
   const allRows = [];
   const matchedModules = new Set();
@@ -40,7 +43,7 @@ async function prepareFilesForGPT(parent_id, uploadedCsvs = [], uploadedRankings
     const moduleName = classifyCsv(file.filename);
 
     if (!moduleName) {
-      console.warn(`❌ Skipping file: ${file.filename}`);
+      console.warn(`❌ Skipping file: ${file?.filename || '[Unknown]'}`);
       continue;
     }
 
@@ -59,10 +62,7 @@ async function prepareFilesForGPT(parent_id, uploadedCsvs = [], uploadedRankings
     for (const row of rows) {
       const isBlog = row?.url?.includes('/blog/') || row?.page_type === 'blog';
 
-      // Save for separate blog.json file
       if (isBlog) blogPages.push(row);
-
-      // Route blog pages only to 'indexing' and 'schema'
       if (isBlog && !['indexing', 'schema'].includes(moduleName)) {
         continue;
       }
@@ -76,15 +76,13 @@ async function prepareFilesForGPT(parent_id, uploadedCsvs = [], uploadedRankings
     }
   }
 
-  // Upload parsed JSON rows for each module
   for (const [mod, rows] of Object.entries(moduleData)) {
     console.log(`📤 Uploading module '${mod}' with ${rows.length} rows to Supabase...`);
     await uploadJsonToSupabase('raw-inputs', parent_id, mod, rows);
   }
 
-  // Upload blogPages separately
   if (blogPages.length) {
-    const topBlogs = blogPages.slice(0, 100); // limit to 100
+    const topBlogs = blogPages.slice(0, 100);
     console.log(`📤 Uploading blogs.json with ${topBlogs.length} blog pages...`);
     await uploadJsonToSupabase('raw-inputs', parent_id, 'blogs', topBlogs);
   }
@@ -96,5 +94,6 @@ async function prepareFilesForGPT(parent_id, uploadedCsvs = [], uploadedRankings
     ...moduleData
   };
 }
+
 
 module.exports = { prepareFilesForGPT };
