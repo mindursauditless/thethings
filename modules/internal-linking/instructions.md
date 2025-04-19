@@ -1,5 +1,3 @@
-<!-- Filename: module10-internal-linking.md -->
-
 # Module 10: Internal Linking
 
 ## Purpose
@@ -15,11 +13,7 @@ Optimize internal links to reinforce topical authority, improve crawlability, an
 | Link anchor relevance | Evaluate anchor text usage  | Flag generic or irrelevant anchors                          |
 | Link placement    | In-body vs. sidebar/footer      | In-body > boilerplate links                                 |
 
-## OS Tone
-- “Internal links are about strategy, not just reachability.”
-- “Flat ≠ good. Context matters.”
-
-## MAL Crossover
+## Crossover issues
 - **Content Quality**: Blog pages not linking to relevant services → “Add internal CTAs/links.”
 - **IA**: Key pages not linked beyond nav → “Needs in-body linking strategy.”
 - **Indexing**: Page not indexed + no links → “Invisible to Google.”
@@ -39,7 +33,4 @@ Optimize internal links to reinforce topical authority, improve crawlability, an
 
 ## Internal Linking Logic Correction
 - “Flat structure ≠ effective structure. Use in-body links between related services, locations, and content.”
-
-## Strategy Changes Based on Tool Inputs
-- “Use third-party tools only to enrich insights, never override site data.”
 
