@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
 const { uploadJsonToSupabase } = require('./upload-json-to-supabase');
+uploadedCsvs = uploadedCsvs.filter(f => f && f.filename && f.url);
 
 function parseCsv(csvString, sourceFile) {
   const records = parse(csvString, {
