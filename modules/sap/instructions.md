@@ -5,14 +5,6 @@
 ## Purpose
 Guide SABs (Service Area Businesses) on building local relevance/visibility without physical addresses—especially for wide or competitive service ranges.
 
-## Inputs Required
-- Primary service area(s)
-- GBP radius / service cities
-- Number & quality of SAPs (Service Area Pages)
-- Supporting location references (content, reviews, schema)
-- Competitor density in target cities
-- Index/traffic status of SAPs
-
 ## Philosophy
 - Proximity bias is real—content relevance must go deeper.
 - SAPs aren’t magic; they need robust support signals.
@@ -29,11 +21,8 @@ Guide SABs (Service Area Businesses) on building local relevance/visibility with
 | SAPs targeting unrealistic areas| Geo-radius + content   | “You can’t rank in places you don’t serve.”          |
 | Lack of local signals on SAPs | NLP + link review        | Flag missing city references, clients, maps, etc.     |
 
-## OS Tone
-- “You’re trying to rank in places you don’t actually serve.”
-- “This is just a global template with a city name swapped in.”
 
-## MAL Crossover
+## Crossover Issues
 - **GBP Optimization**: Large SAB radius but no matching pages → “Create SAPs or reduce radius.”
 - **Content Quality**: Identical SAP copy → “Rewrite or cluster them.”
 - **Internal Linking**: SAPs are orphaned → “Content hubs or linking plan.”
@@ -56,8 +45,3 @@ Guide SABs (Service Area Businesses) on building local relevance/visibility with
 - Only suggest new SAPs if ranking is plausible.
 - Beware content bloat for big coverage areas.
 - Offer geo-cluster or hub/spoke pages as safer alternatives.
-
-## Future Enhancements
-- Localized intent scoring
-- SAP framework generator (with linking/schema)
-- City-level performance scoring
