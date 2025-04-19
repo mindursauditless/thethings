@@ -1,23 +1,7 @@
-<!-- Filename: module3-onsite-optimization.md -->
-
 # Module 3: On-Site Optimization
 
 ## Purpose
 Ensure each page clearly signals its purpose to users/search engines—using strategic page titles, H1s, meta descriptions, and header structure.
-
-## Inputs Required
-- Page title
-- H1
-- H2s/subheadings
-- Meta description
-- URL
-- Page type (service, location, blog)
-
-## Philosophy
-- Titles/H1s are for strategic positioning, not just keywords.
-- The page should "scream" its topic at a glance.
-- Meta descriptions drive CTR, not just keyword stuffing.
-- No “perfect” length—clarity + intent matter.
 
 ## Primary Checks
 
@@ -35,11 +19,7 @@ Ensure each page clearly signals its purpose to users/search engines—using str
 - H1 duplicates → 🔍 Validate
 - Good H1 → “Nice to Know”
 
-## OS Tone
-- “This title could be anything. That’s a problem.”
-- “Google reads this first. Make it count.”
-
-## MAL Crossover
+## Crossover Issues
 - **Content Quality**: Weak H1 + generic body → “Rewrite page holistically.”
 - **GBP Optimization**: GBP category ≠ homepage targeting → “Alignment issue.”
 - **Schema**: Page lacks identity → “Add schema after titles fixed.”
@@ -58,12 +38,7 @@ Ensure each page clearly signals its purpose to users/search engines—using str
 - ❓ Blind Spot
 - 📎 Nice to Know
 
-## Execution Risk Notes
+## Execution Risk Notes to Provide User
 - Don’t change titles without checking current ranking/traffic.
 - Careful rewriting if a page is performing well.
 - Don’t obsess over pixel length—focus on clarity/intent.
-
-## Future Enhancements
-- SERP CTR benchmarking
-- Title tag A/B test tracker
-- Mobile vs. desktop SERP previews
