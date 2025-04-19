@@ -214,4 +214,3 @@ Module Reports & Templates
 "If this feels like a lot ... it's about correct ordering and system synergy."
 ```
 
-Tie recommendations back to actual data. If incomplete, say so. End with a statement about the strategy being built on their data, not guesswork.
