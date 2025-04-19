@@ -5,14 +5,7 @@
 ## Purpose
 Ensure users and search engines can navigate the site logically, finding all core service/location pages in a structure that reflects real search behavior and business operations.
 
-## Inputs Required
-- Site navigation (menu)
-- URL paths
-- Page types & counts (services, locations, blog)
-- Basic internal link map
-
 ## Philosophy
-- Clarity and logic > aesthetics.
 - Fix nav disconnects before new content or link structures.
 - Think from user goals + search flow.
 
@@ -46,7 +39,7 @@ Ensure users and search engines can navigate the site logically, finding all cor
 - If no hub pages → “Hub pages missing for major categories.”
 - If only widget links → “Links should be in content, not just sidebars.”
 
-## MAL Crossover
+##  Crossover Issues
 - **Content Quality**: Thin service pages → “Consolidate under a hub.”
 - **Internal Linking**: No in-body links → “Improve structure, link from high-authority pages.”
 - **Indexing**: Orphaned high-value pages → “Add supporting links.”
@@ -58,9 +51,3 @@ Ensure users and search engines can navigate the site logically, finding all cor
 - 🔍 Validate
 - ❓ Blind Spot
 - 📎 Nice to Know
-
-## Future Enhancements
-- Page depth score
-- Internal link graph
-- Low-CTR nav link detection
-- Compare nav structure to user heatmaps
