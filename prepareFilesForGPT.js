@@ -15,7 +15,7 @@ function parseCsv(csvString, sourceFile) {
 }
 
 function classifyCsv(filename) {
-  const name = filename.toLowerCase();
+  const name = (filename || '').toLowerCase();
   if (name.includes('structured_data')) return 'schema';
   if (name.includes('internal_links')) return 'internal_links';
   if (name.includes('onsite')) return 'onsite';
