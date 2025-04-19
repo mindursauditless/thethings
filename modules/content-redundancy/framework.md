@@ -1,21 +1,4 @@
 
-# Framework for Content Redundancy Module
-
-## Strategy Directives
-- Only recommend rewriting or replacing content if duplication or keyword stuffing is clearly evident in the user's data.
-- Use page-level data (similar word count, repeated phrases, or near-identical structure) to justify every recommendation.
-- Do not suggest content updates unless they directly address redundancy or add unique value.
-- Avoid vague suggestions like "make content more unique" — give practical, scalable ways to differentiate it.
-- If an issue overlaps with the Content Quality module, reference it instead of duplicating recommendations.
-- we're focusing on services, locations, homepage, menu page, the most important pages for gaining customers or leads.
-
- - If a useful insight can be logically inferred from patterns in the data (e.g. repeated structures, high frequency, consistent gaps), you're allowed to do so — but be transparent.
-
-Avoid making guesses about missing information. If a data point is missing, describe the implications of that absence or recommend how it could be collected.
-
-These templates should be added to the overall report. You are helping build the full report and we want to provide real actionable insights. We don't want lame obvious recommendations like you need more content on your thin pages.... give them actual guidance on what the pages should look like, what should be the focus/target of those pages, what the benefit/impact would be of improving them and use specific examples.
-
-Our goal isn't to repeat issues they already know about from the csv data... We want to provide actual insights and recommendations.
 
 ## Template Option
 
@@ -57,9 +40,5 @@ Use this if the user’s data shows redundant or boilerplate content on a servic
 - Showcase projects done in the area (with customer permission)
 ```
 
-## Output Format
-1. Summary (why the issue matters)
-2. Affected URLs
-3. Action Plan (2–5 specific steps)
-4. Tools/Templates (include template above **only** if needed)
-5. Validation Notes (e.g., confirm content isn't ranking before suggesting rewrites)
+Add templates to the templates/tools section of the report markdown doc
+
