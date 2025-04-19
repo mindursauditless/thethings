@@ -29,7 +29,7 @@ async function runModuleAudits(parent_id, modules = moduleNames, rankingData = [
   // STEP 4: Generate GPT module reports
   for (const moduleName of modules) {
     try {
-      const rawPath = path.join(__dirname, 'raw', parent_id, `${moduleName}.json`);
+      const rawPath = path.join(__dirname, 'raw-inputs', 'raw', parent_id, `${moduleName}.json`);
       if (!fs.existsSync(rawPath)) {
         console.warn(`⚠️ No raw data found for module ${moduleName}`);
         continue;
